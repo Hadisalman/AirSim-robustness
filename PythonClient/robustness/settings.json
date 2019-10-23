@@ -1,0 +1,13 @@
+{
+    "SettingsVersion": 1.2,
+    "SimMode": "Car",
+    "CameraDefaults": {
+      "CaptureSettings":[
+        {
+          "ImageType": 0,
+          "Width": 1200,
+          "Height": 740
+        }
+      ]
+    }
+  }
