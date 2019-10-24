@@ -1,9 +1,9 @@
-import cv2
-import numpy as np
 import os
+import shutil
 
 import airsim
-
+import cv2
+import numpy as np
 from IPython import embed
 
 
@@ -19,6 +19,7 @@ class ped_recognition_dataset(object):
         self.client.enableApiControl(True)
 
         self.num_samples = num_samples
+        self.curr_idx = 0
         
         self.scene_objs = self.client.simListSceneObjects()
 
@@ -47,14 +48,33 @@ class ped_recognition_dataset(object):
         self.yaw_value_range_ped = (-180*np.pi/180, 180*np.pi/180)
         self.ped_pose = self.client.simGetObjectPose('Hadi')
         self.euler_ped = list(airsim.to_eularian_angles(self.ped_pose.orientation))
-
-        found = client.simSetSegmentationObjectID("Hadi", 2);
+        
+        self.no_ped_pose = self.client.simGetObjectPose('Hadi')
+        self.no_ped_pose.position.x_val += 100
+        
+        # Segmentation params
+        found = self.client.simSetSegmentationObjectID(mesh_name="Hadi", object_id=2);
         assert found
+        # https://microsoft.github.io/AirSim/docs/seg_rgbs.txt
+        self.RGB_ped = [112, 105, 191] # Corresponding to object_id=2
 
-    def generate(self, print_freq=10):
-        for i in range(self.num_samples):
-            if i % print_freq == 0:
-                print("Generated {} data samples out of {} so far".format(i+1, self.num_samples))
+        # Save dir
+        self.dataset_path = "C:/Users/hasalman/Desktop/datasets/pedestrian_recognition_2"
+        self.no_ped_path = os.path.join(self.dataset_path, 'no_ped')
+        self.ped_path = os.path.join(self.dataset_path, 'ped')
+        if not os.path.isdir(self.no_ped_path):
+            os.makedirs(self.no_ped_path)
+        if not os.path.isdir(self.ped_path):
+            os.makedirs(self.ped_path)
+
+        # Copy settings.json form local directory to the dataset_path
+        # to keep track of the config used when generating the dataset
+        shutil.copy(os.path.expanduser('~/Documents/AirSim/settings.json'), self.dataset_path)
+
+    def generate(self, print_freq=100):
+        while self.curr_idx < self.num_samples:
+            if self.curr_idx % print_freq == 0:
+                print("Generated {} data samples out of {} so far".format(self.curr_idx+1, self.num_samples))
             self.sample_data_point()
 
     def sample_data_point(self):
@@ -76,27 +96,35 @@ class ped_recognition_dataset(object):
         self.ped_pose.orientation = airsim.to_quaternion(*self.euler_ped)
         self.client.simSetObjectPose('Hadi', self.ped_pose)
 
-        #Check of pedestrian is in fov of the car using segmentation ground truth
-        embed()
-
-        request = [airsim.ImageRequest("0", airsim.ImageType.Segmentation, False)]        
+        request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)]        
         response = self.client.simGetImages(request)
-        img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
-        img_rgb = img_rgb_1d.reshape(response[0].width, response[0].width, 3) #reshape array to 3 channel image array H X W X 3
+        self.writeImgToFile(image_response=response[0], path=self.ped_path)
 
-        pass
+        # Remove Ped from scene, then save a "no_ped" image
+        self.client.simSetObjectPose('Hadi', self.no_ped_pose)
+        response = self.client.simGetImages(request)
+        self.writeImgToFile(image_response=response[0], path=self.no_ped_path)
+
+        #Check of pedestrian is in fov of the car using segmentation ground truth
+        # embed()
+
+        # request = [airsim.ImageRequest("0", airsim.ImageType.Segmentation, False, False)]        
+        # response = self.client.simGetImages(request)
+        # img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
+        # img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3) #reshape array to 3 channel image array H X W X 3
+
+        self.curr_idx += 1
 
 
-    def writeImgToFile(self, image_response):
+    def writeImgToFile(self, image_response, path):
         if len(image_response.image_data_uint8) == image_response.width * image_response.height * 3:
-            img1d = np.fromstring(image_response.image_data_uint8, dtype=np.uint8)  # get numpy array
+            img1d = np.frombuffer(image_response.image_data_uint8, dtype=np.uint8)  # get numpy array
             img_rgb = img1d.reshape(image_response.height, image_response.width, 3)  # reshape array to 4 channel image array H X W X 3
-            cv2.imwrite(os.path.join(self.base_path, 'images', str(self.curr_idx).zfill(len(str(self.num_samples))) + '.png'), img_rgb)  # write to png
+            cv2.imwrite(os.path.join(path, str(self.curr_idx).zfill(len(str(self.num_samples))) + '.png'), img_rgb)  # write to png
         else:
             print('ERROR IN IMAGE SIZE -- NOT SUPPOSED TO HAPPEN')
 
 
 if __name__ == "__main__":
-    dataset = ped_recognition_dataset(num_samples=1)
+    dataset = ped_recognition_dataset(num_samples=20000)
     dataset.generate()
-    embed()
