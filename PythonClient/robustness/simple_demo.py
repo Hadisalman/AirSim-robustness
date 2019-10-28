@@ -1,18 +1,17 @@
+import os
+import threading
+import time
+
 import airsim
 import cv2
 import numpy as np
-import os
-import setup_path 
-import time
-import threading
 from IPython import embed
-
 
 ############################################################
 client = airsim.CarClient()
 client.confirmConnection()
 client.enableApiControl(True)
-
+embed()
 ############################################################
 car_controls = airsim.CarControls()
 car_controls.is_manual_gear = True;
@@ -37,7 +36,7 @@ client.setCarControls(car_controls)
 print("Go reverse")
 time.sleep(3)   # let car drive a bit
 
-# Go forward
+# Go forward and turn right
 car_controls.manual_gear = 1
 car_controls.throttle = 1
 client.setCarControls(car_controls)
@@ -50,6 +49,7 @@ print("Turn Right")
 time.sleep(1.35)
 
 
+# go forward
 car_controls.throttle = 0.5
 car_controls.steering = 0
 client.setCarControls(car_controls)
@@ -77,7 +77,7 @@ client.setCarControls(car_controls)
 print("Apply brakes")
 time.sleep(3)   
 
-
+embed()
 ############################################################
 ## Control objects in the scene
 def get_trajectory(start_pose, end_pose, num_waypoints=10):
@@ -124,7 +124,7 @@ for obj in adv_objects:
     for way_point in traj:
         client.simSetObjectPose(obj, way_point)
         time.sleep(0.01)
-
+embed()
 ############################################################
 ## Control the Weather
 client.simEnableWeather(True)
@@ -142,5 +142,3 @@ client.simEnableWeather(False)
 # Reset
 client.reset()
 client.enableApiControl(False)
-
-
