@@ -22,8 +22,8 @@ class Demo():
         self.client_adv.confirmConnection()
         self.client_weather = airsim.CarClient()
         self.client_weather.confirmConnection()
-        self.airsim_client_images = airsim.CarClient()
-        self.airsim_client_images.confirmConnection()
+        self.client_images = airsim.CarClient()
+        self.client_images.confirmConnection()
 
         self.image_callback_thread = threading.Thread(target=self.repeat_timer_image_callback, args=(self.image_callback, 0.01))
         self.is_image_thread_active = False
@@ -55,9 +55,8 @@ class Demo():
         request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)]
         # request = [airsim.ImageRequest("0", airsim.ImageType.Segmentation, False)]        
         # request = [airsim.ImageRequest("0", airsim.ImageType.DepthVis, False, False)]
-        # request = [airsim.ImageRequest("0", airsim.ImageType.DepthPerspective, True, False)]
 
-        response = self.airsim_client_images.simGetImages(request)
+        response = self.client_images.simGetImages(request)
         img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
         img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3)
         cv2.imshow("img_rgb", img_rgb)
@@ -284,7 +283,6 @@ class Demo():
 
 
 if __name__ == "__main__":
-    # ensure you have generated the neurips planning settings file by running python generate_settings_file.py
     demo = Demo()
 
     embed()
@@ -304,37 +302,3 @@ if __name__ == "__main__":
     demo.stop_car_thread()
    
     demo.reset()
-
-
-
-
-# ###############################################
-# # Computer vision
-# # get camera images from the car
-# responses = client.simGetImages([
-#     airsim.ImageRequest("0", airsim.ImageType.DepthVis),  #depth visualization image
-#     airsim.ImageRequest("1", airsim.ImageType.DepthPerspective, True), #depth in perspective projection
-#     airsim.ImageRequest("1", airsim.ImageType.Scene), #scene vision image in png format
-#     airsim.ImageRequest("1", airsim.ImageType.Scene, False, False)])  #scene vision image in uncompressed RGB array
-# print('Retrieved images: %d', len(responses))
-
-# for response in responses:
-#     filename = 'c:/temp/py' + str(0)
-#     if not os.path.exists('c:/temp/'):
-#         os.makedirs('c:/temp/')
-#     if response.pixels_as_float:
-#         print("Type %d, size %d" % (response.image_type, len(response.image_data_float)))
-#         airsim.write_pfm(os.path.normpath(filename + '.pfm'), airsim.get_pfm_array(response))
-#     elif response.compress: #png format
-#         print("Type %d, size %d" % (response.image_type, len(response.image_data_uint8)))
-#         airsim.write_file(os.path.normpath(filename + '.png'), response.image_data_uint8)
-#     else: #uncompressed array
-#         print("Type %d, size %d" % (response.image_type, len(response.image_data_uint8)))
-#         img1d = np.fromstring(response.image_data_uint8, dtype=np.uint8) # get numpy array
-#         img_rgb = img1d.reshape(response.height, response.width, 3) # reshape array to 3 channel image array H X W X 3
-#         cv2.imwrite(os.path.normpath(filename + '.png'), img_rgb) # write to png 
-
-
-
-###############################################
-#restore to original state
