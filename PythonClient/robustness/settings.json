@@ -1,13 +1,14 @@
 {
-    "SettingsVersion": 1.2,
-    "SimMode": "Car",
-    "CameraDefaults": {
-      "CaptureSettings":[
-        {
-          "ImageType": 0,
-          "Width": 1200,
-          "Height": 740
-        }
-      ]
-    }
+  "SettingsVersion": 1.2,
+  "SimMode": "Car",
+  "CameraDefaults": {
+    "CaptureSettings":[
+      {
+        "ImageType": 0,
+        "Width": 256,
+        "Height": 256,
+        "FOV_Degrees": 60
+      }
+    ]
   }
+}
