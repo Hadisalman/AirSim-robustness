@@ -1,3 +1,4 @@
+import argparse
 import os
 import threading
 import time
@@ -5,11 +6,19 @@ import time
 import airsim
 import cv2
 import numpy as np
+import PIL
+import torch
+import torchvision.models as models
+import torchvision.transforms as transforms
 from IPython import embed
 
+model_names = sorted(name for name in models.__dict__
+    if name.islower() and not name.startswith("__")
+    and callable(models.__dict__[name]))
 
 class Demo():
-    def __init__(self, ):
+    def __init__(self, args):
+        self.args = args
         ###############################################
         # # connect to the AirSim simulator 
         self.client_car = airsim.CarClient()
@@ -24,15 +33,47 @@ class Demo():
         self.client_weather.confirmConnection()
         self.client_images = airsim.CarClient()
         self.client_images.confirmConnection()
+        self.client_ped_detection = airsim.CarClient()
+        self.client_ped_detection.confirmConnection()
 
         self.image_callback_thread = threading.Thread(target=self.repeat_timer_image_callback, args=(self.image_callback, 0.01))
         self.is_image_thread_active = False
+        
+        #########################
+        # Pedestrian detection
+        self.ped_detection_callback_thread = threading.Thread(target=self.repeat_timer_ped_detection_callback, args=(self.ped_detection_callback, 0.01))
+        self.is_ped_detection_thread_active = False
+
+        print("=> creating model '{}'".format(args.arch))
+        checkpoint = torch.load(args.model)
+
+        self.model = models.__dict__[checkpoint["arch"]]()
+        self.model.fc = torch.nn.Linear(512, 2)    
+        if checkpoint["arch"].startswith('alexnet') or args.arch.startswith('vgg'):
+            self.model.features = torch.nn.DataParallel(self.model.features)
+            self.model.cuda()
+        else:
+            self.model = torch.nn.DataParallel(self.model).cuda()
+        self.model.load_state_dict(checkpoint['state_dict'])
+        print("Loading successful. Test accuracy of this model is: {} %".format(checkpoint['test_acc']))
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                        std=[0.229, 0.224, 0.225])
+        self.transform_test = transforms.Compose([
+                                            transforms.Resize(args.img_size),
+                                            transforms.ToTensor(),
+                                            normalize
+                                            ])
+        self.model.eval()
+        test_image_no_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_2//no_ped//00000.png')
+        test_image_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_2//ped//00000.png')
+        self._loaded_model_unit_test(test_image_ped, test_image_no_ped)
+
+        #########################
 
         self.car_thread = threading.Thread(target=self.drive)
         self.ped_thread = threading.Thread(target=self.move_pedestrian)
         self.adv_thread = threading.Thread(target=self.start_attack)
         self.weather_thread = threading.Thread(target=self.demo_weather)
-        self.camera_thread = threading.Thread(target=self.demo_weather)
         self.is_car_thread_active = False
         self.is_ped_thread_active = False
         self.is_adv_thread_active = False
@@ -50,6 +91,18 @@ class Demo():
         for obj in self.adv_objects:
             print('{} exists? {}'.format(obj, obj in self.scene_objs))
 
+    def _loaded_model_unit_test(self, test_image_True, test_image_False):
+        img = PIL.Image.open(test_image_True)
+        X = self.transform_test(img)
+        pred = self.model(X.unsqueeze(0))
+        assert pred.max(1)[1].item() == 1, "Pedestrian detection unit test failed"
+
+        img = PIL.Image.open(test_image_False)
+        X = self.transform_test(img)
+        pred = self.model(X.unsqueeze(0))
+        assert pred.max(1)[1].item() == 0, "Pedestrian detection unit test failed"
+        print("Loaded detection model unit test succeeded!")
+
     def image_callback(self):
         # get uncompressed fpv cam image
         request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)]
@@ -64,6 +117,23 @@ class Demo():
 
     def repeat_timer_image_callback(self, task, period):
         while self.is_image_thread_active:
+            task()
+            time.sleep(period)
+
+
+    def ped_detection_callback(self):
+        # get uncompressed fpv cam image
+        request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)]
+        response = self.client_ped_detection.simGetImages(request)
+        img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
+        img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3)
+        img_rgb = PIL.Image.fromarray(img_rgb)
+        X = self.transform_test(img_rgb)
+        pred = self.model(X.unsqueeze(0))
+        print("Pedestrian detected? {}".format(pred.max(1)[1].item()))
+
+    def repeat_timer_ped_detection_callback(self, task, period):
+        while self.is_ped_detection_thread_active:
             task()
             time.sleep(period)
 
@@ -107,6 +177,18 @@ class Demo():
             self.is_image_thread_active = False
             self.image_callback_thread.join()
             print("Stopped image callback thread.")
+
+    def start_ped_detection_callback_thread(self):
+        if not self.is_ped_detection_thread_active:
+            self.is_ped_detection_thread_active = True
+            self.ped_detection_callback_thread.start()
+            print("Started pedestrian detection callback thread")
+
+    def stop_ped_detection_callback_thread(self):
+        if self.is_ped_detection_thread_active:
+            self.is_ped_detection_thread_active = False
+            self.ped_detection_callback_thread.join()
+            print("Stopped pedestrian detection callback thread.")
 
     def start_ped_thread(self):
         if not self.is_ped_thread_active:
@@ -283,22 +365,37 @@ class Demo():
 
 
 if __name__ == "__main__":
-    demo = Demo()
+    parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
+    parser.add_argument('model', metavar='DIR',
+                        help='path to pretrained model')
+    parser.add_argument('--img-size', default=224, type=int, metavar='N',
+                        help='size of rgb image (assuming equal hight and width)')
+    parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
+                        choices=model_names,
+                        help='model architecture: ' +
+                            ' | '.join(model_names) +
+                            ' (default: resnet18)')
+    args = parser.parse_args()
+
+    demo = Demo(args)
 
     embed()
 
+    demo.start_ped_detection_callback_thread()
+    time.sleep(3)
     demo.start_car_thread()
-    demo.start_image_callback_thread()
     demo.start_adv_thread()
     demo.start_ped_thread()
     demo.start_weather_thread()
+    # demo.start_image_callback_thread()
 
     embed()
 
-    demo.stop_image_callback_thread()
+    demo.stop_ped_detection_callback_thread()
     demo.stop_ped_thread()
     demo.stop_adv_thread()
     demo.stop_weather_thread()
     demo.stop_car_thread()
+    # demo.stop_image_callback_thread()
    
     demo.reset()
