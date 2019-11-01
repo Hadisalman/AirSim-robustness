@@ -18,14 +18,23 @@ class Attacker(metaclass=ABCMeta):
 class PGD(Attacker):
     def __init__(self, random_start=True, step_size=0.1, 
                 epsilon=0.3, num_steps=40, 
-                norm='linf'):
+                norm='linf', est_grad=None):
         super(PGD, self).__init__()
-        self.criterion = CrossEntropyLoss()
+        self.criterion = CrossEntropyLoss(reduction='none')
         self.epsilon = epsilon
         self.norm = norm
         self.num_steps = num_steps
         self.random_start = random_start
         self.step_size = step_size
+        self.est_grad = est_grad
+
+    def _compute_loss(self, inputs, targets, normalize_input=None):
+        if normalize_input is not None:
+            logits = self.model(normalize_input(inputs))
+        else:
+            logits = self.model(inputs)
+        loss = self.criterion(logits, targets)
+        return loss
 
     def _perturb_linf(self, inputs, targets, normalize_input=None):
         x = inputs.clone().detach()
@@ -35,12 +44,13 @@ class PGD(Attacker):
         for i in range(self.num_steps):
             x.requires_grad_()
             with torch.enable_grad():
-                if normalize_input is not None:
-                    logits = self.model(normalize_input(x))
-                else:
-                    logits = self.model(x)
-                loss = self.criterion(logits, targets)
-            grad = torch.autograd.grad(loss, x)[0]
+                losses = self._compute_loss(x, targets, normalize_input)
+                loss = losses.mean()
+            if self.est_grad is None:
+                grad = torch.autograd.grad(loss, x)[0]
+            else:
+                f = lambda _x, _y: self._compute_loss(_x, _y, normalize_input)
+                grad = calc_est_grad(f, x, targets, *self.est_grad)
             x = x + self.step_size * torch.sign(grad)
             x = torch.min(torch.max(x, inputs - self.epsilon), inputs + self.epsilon).clamp(0, 1)
         return x.detach()
@@ -55,12 +65,13 @@ class PGD(Attacker):
         for i in range(self.num_steps):
             x.requires_grad_()
             with torch.enable_grad():
-                if normalize_input is not None:
-                    logits = self.model(normalize_input(x))
-                else:
-                    logits = self.model(x)
-                loss = self.criterion(logits, targets)
-            grad = torch.autograd.grad(loss, [x])[0]
+                losses = self._compute_loss(x, targets, normalize_input)
+                loss = losses.mean()
+            if self.est_grad is None:
+                grad = torch.autograd.grad(loss, x)[0]
+            else:
+                f = lambda _x, _y: self._compute_loss(_x, _y, normalize_input)
+                grad = calc_est_grad(f, x, targets, *self.est_grad)
             grad_norms = grad.view(batch_size, -1).norm(p=2, dim=1)
             grad.div_(grad_norms.view(-1, 1, 1, 1))
           
@@ -71,7 +82,8 @@ class PGD(Attacker):
             x = torch.clamp(x, 0, 1)
         return x.detach()
 
-    def attack(self, model, inputs, targets, normalize_input):
+
+    def attack(self, model, inputs, targets, normalize_input=None):
         self.model = model
         if self.norm == 'l2':
             return self._perturb_l2(inputs, targets, normalize_input)        
@@ -80,6 +92,26 @@ class PGD(Attacker):
         else:
             raise Exception
 
+# Taken from https://github.com/MadryLab/robustness
+def calc_est_grad(func, x, y, rad, num_samples):
+    B, *_ = x.shape
+    Q = num_samples//2
+    N = len(x.shape) - 1
+    with torch.no_grad():
+        # Q * B * C * H * W
+        extender = [1]*N
+        queries = x.repeat(Q, *extender)
+        noise = torch.randn_like(queries)
+        norm = noise.view(B*Q, -1).norm(dim=-1).view(B*Q, *extender)
+        noise = noise / norm
+        noise = torch.cat([-noise, noise])
+        queries = torch.cat([queries, queries])
+        y_shape = [1] * (len(y.shape) - 1)
+        l = func(queries + rad * noise, y.repeat(2*Q, *y_shape)).view(-1, *extender) 
+        grad = (l.view(2*Q, B, *extender) * noise.view(2*Q, B, *noise.shape[1:])).mean(dim=0)
+    return grad
+
+# Taken from https://github.com/Hadisalman/smoothing-adversarial
 class NormalizeLayer(torch.nn.Module):
     """Standardize the channels of a batch of images by subtracting the dataset mean
       and dividing by the dataset standard deviation.
@@ -94,8 +126,8 @@ class NormalizeLayer(torch.nn.Module):
         :param sds: the channel standard deviations
         """
         super(NormalizeLayer, self).__init__()
-        self.means = torch.tensor(means)
-        self.sds = torch.tensor(sds)
+        self.means = torch.tensor(means).cuda()
+        self.sds = torch.tensor(sds).cuda()
 
     def forward(self, input):
         (batch_size, num_channels, height, width) = input.shape

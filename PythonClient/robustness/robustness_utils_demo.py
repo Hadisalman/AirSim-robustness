@@ -18,6 +18,7 @@ model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
 
+# Linf Whitebox
 attack_config = {
     'random_start' : True, 
     'step_size' : 1./255,
@@ -26,12 +27,33 @@ attack_config = {
     'norm' : 'linf',
     }
 
+# Linf Blackbox
+# attack_config = {
+#     'random_start' : True, 
+#     'step_size' : 4./255,
+#     'epsilon' : 16./255, 
+#     'num_steps' : 8, 
+#     'norm' : 'linf',
+#     'est_grad': (5, 200)
+#     }
+
+# L2 Whitebox
 # attack_config = {
 #     'random_start' : True, 
 #     'step_size' : 150./255,
 #     'epsilon' : 255./255, 
 #     'num_steps' : 2, 
 #     'norm' : 'l2',
+#     }
+
+# L2 Blackbox
+# attack_config = {
+#     'random_start' : True, 
+#     'step_size' : 500./255,
+#     'epsilon' : 4000./255, 
+#     'num_steps' : 8, 
+#     'norm' : 'l2',
+#     'est_grad': (5, 200)
 #     }
 
 ATTACK = True
@@ -62,7 +84,7 @@ class Demo():
         
         #########################
         # Pedestrian detection
-        self.ped_detection_callback_thread = threading.Thread(target=self.repeat_timer_ped_detection_callback, args=(self.ped_detection_callback, 0.001))
+        self.ped_detection_callback_thread = threading.Thread(target=self.repeat_timer_ped_detection_callback, args=(self.ped_detection_callback, 0.01))
         self.is_ped_detection_thread_active = False
 
         checkpoint = torch.load(args.model)
@@ -120,7 +142,7 @@ class Demo():
         assert pred.max(1)[1].item() == 1, "Pedestrian detection unit test failed"
 
         img = PIL.Image.open(test_image_False)
-        X = self.transform_test(img)
+        X = self.transform_test(img).cuda()
         X = self.normalize(X.unsqueeze(0))
         pred = self.model(X)
         assert pred.max(1)[1].item() == 0, "Pedestrian detection unit test failed"
@@ -147,11 +169,15 @@ class Demo():
     def ped_detection_callback(self):
         # get uncompressed fpv cam image
         request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)]
-        response = self.client_ped_detection.simGetImages(request)
-        img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
-        img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3)
+        response = self.client_ped_detection.simGetImages(request)[0]
+        while response.height == 0 or response.width == 0:
+            time.sleep(0.001)
+            response = self.client_ped_detection.simGetImages(request)[0]
+
+        img_rgb_1d = np.frombuffer(response.image_data_uint8, dtype=np.uint8) 
+        img_rgb = img_rgb_1d.reshape(response.height, response.width, 3)
         img_rgb = PIL.Image.fromarray(img_rgb)
-        X = self.transform_test(img_rgb).unsqueeze(0)
+        X = self.transform_test(img_rgb).unsqueeze(0).cuda()
         if ATTACK:
             targets = torch.full(X.shape[:1], 1).long().cuda()
             X = ATTACKER.attack(self.model, X, targets, self.normalize)
