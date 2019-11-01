@@ -4,6 +4,8 @@
 .svn/
 
 *.pth.tar
+.ptconfig
+.ptignore
 
 # User-specific files
 *.suo

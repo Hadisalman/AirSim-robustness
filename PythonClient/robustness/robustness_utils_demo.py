@@ -12,9 +12,30 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 from IPython import embed
 
+from attacks import PGD, NormalizeLayer
+
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
+
+attack_config = {
+    'random_start' : True, 
+    'step_size' : 1./255,
+    'epsilon' : 2./255, 
+    'num_steps' : 2, 
+    'norm' : 'linf',
+    }
+
+attack_config = {
+    'random_start' : True, 
+    'step_size' : 150./255,
+    'epsilon' : 255./255, 
+    'num_steps' : 2, 
+    'norm' : 'l2',
+    }
+
+ATTACKER = PGD(**attack_config)
+ATTACK = True
 
 class Demo():
     def __init__(self, args):
@@ -44,24 +65,25 @@ class Demo():
         self.ped_detection_callback_thread = threading.Thread(target=self.repeat_timer_ped_detection_callback, args=(self.ped_detection_callback, 0.01))
         self.is_ped_detection_thread_active = False
 
-        print("=> creating model '{}'".format(args.arch))
         checkpoint = torch.load(args.model)
+        print("=> creating model '{}'".format(checkpoint["arch"]))
 
         self.model = models.__dict__[checkpoint["arch"]]()
         self.model.fc = torch.nn.Linear(512, 2)    
-        if checkpoint["arch"].startswith('alexnet') or args.arch.startswith('vgg'):
+        if checkpoint["arch"].startswith('alexnet') or checkpoint["arch"].startswith('vgg'):
             self.model.features = torch.nn.DataParallel(self.model.features)
             self.model.cuda()
         else:
             self.model = torch.nn.DataParallel(self.model).cuda()
         self.model.load_state_dict(checkpoint['state_dict'])
         print("Loading successful. Test accuracy of this model is: {} %".format(checkpoint['test_acc']))
-        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                        std=[0.229, 0.224, 0.225])
+        # self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+        #                                 std=[0.229, 0.224, 0.225])
+        self.normalize = NormalizeLayer(means=[0.485, 0.456, 0.406], sds=[0.229, 0.224, 0.225])
         self.transform_test = transforms.Compose([
                                             transforms.Resize(args.img_size),
                                             transforms.ToTensor(),
-                                            normalize
+                                            # normalize
                                             ])
         self.model.eval()
         test_image_no_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_2//no_ped//00000.png')
@@ -99,7 +121,8 @@ class Demo():
 
         img = PIL.Image.open(test_image_False)
         X = self.transform_test(img)
-        pred = self.model(X.unsqueeze(0))
+        X = self.normalize(X.unsqueeze(0))
+        pred = self.model(X)
         assert pred.max(1)[1].item() == 0, "Pedestrian detection unit test failed"
         print("Loaded detection model unit test succeeded!")
 
@@ -128,8 +151,14 @@ class Demo():
         img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
         img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3)
         img_rgb = PIL.Image.fromarray(img_rgb)
-        X = self.transform_test(img_rgb)
-        pred = self.model(X.unsqueeze(0))
+        X = self.transform_test(img_rgb).unsqueeze(0)
+        if ATTACK:
+            targets = torch.full(X.shape[:1], 1).long().cuda()
+            X = ATTACKER.attack(self.model, X, targets, self.normalize)
+            cv2.imshow("adversarial image", X.cpu().numpy()[0].transpose(1,2,0))
+            cv2.waitKey(1)
+        X = self.normalize(X)
+        pred = self.model(X)
         print("Pedestrian detected? {}".format(pred.max(1)[1].item()))
 
     def repeat_timer_ped_detection_callback(self, task, period):
@@ -370,11 +399,7 @@ if __name__ == "__main__":
                         help='path to pretrained model')
     parser.add_argument('--img-size', default=224, type=int, metavar='N',
                         help='size of rgb image (assuming equal hight and width)')
-    parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
-                        choices=model_names,
-                        help='model architecture: ' +
-                            ' | '.join(model_names) +
-                            ' (default: resnet18)')
+
     args = parser.parse_args()
 
     demo = Demo(args)
@@ -383,10 +408,10 @@ if __name__ == "__main__":
 
     demo.start_ped_detection_callback_thread()
     time.sleep(3)
-    demo.start_car_thread()
-    demo.start_adv_thread()
-    demo.start_ped_thread()
-    demo.start_weather_thread()
+    # demo.start_car_thread()
+    # demo.start_adv_thread()
+    # demo.start_ped_thread()
+    # demo.start_weather_thread()
     # demo.start_image_callback_thread()
 
     embed()
