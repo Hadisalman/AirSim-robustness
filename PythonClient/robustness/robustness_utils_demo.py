@@ -26,16 +26,16 @@ attack_config = {
     'norm' : 'linf',
     }
 
-attack_config = {
-    'random_start' : True, 
-    'step_size' : 150./255,
-    'epsilon' : 255./255, 
-    'num_steps' : 2, 
-    'norm' : 'l2',
-    }
+# attack_config = {
+#     'random_start' : True, 
+#     'step_size' : 150./255,
+#     'epsilon' : 255./255, 
+#     'num_steps' : 2, 
+#     'norm' : 'l2',
+#     }
 
-ATTACKER = PGD(**attack_config)
 ATTACK = True
+ATTACKER = PGD(**attack_config)
 
 class Demo():
     def __init__(self, args):
@@ -62,7 +62,7 @@ class Demo():
         
         #########################
         # Pedestrian detection
-        self.ped_detection_callback_thread = threading.Thread(target=self.repeat_timer_ped_detection_callback, args=(self.ped_detection_callback, 0.01))
+        self.ped_detection_callback_thread = threading.Thread(target=self.repeat_timer_ped_detection_callback, args=(self.ped_detection_callback, 0.001))
         self.is_ped_detection_thread_active = False
 
         checkpoint = torch.load(args.model)
@@ -162,9 +162,20 @@ class Demo():
         print("Pedestrian detected? {}".format(pred.max(1)[1].item()))
 
     def repeat_timer_ped_detection_callback(self, task, period):
+        max_count = 50
+        count = 0
+        times = np.zeros((max_count, ))
         while self.is_ped_detection_thread_active:
+            start_time = time.time()
             task()
             time.sleep(period)
+            times[count] = time.time() - start_time
+            count += 1
+            if count == max_count:
+                count = 0
+                avg_time = times.mean()
+                avg_freq = 1/avg_time
+                print('Average pedestrian detection over {} iterations: {} ms | {} Hz'.format(max_count, avg_time*1000, avg_freq))
 
 
     def move_pedestrian(self, obj='Hadi'):

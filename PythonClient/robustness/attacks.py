@@ -41,9 +41,9 @@ class PGD(Attacker):
                     logits = self.model(x)
                 loss = self.criterion(logits, targets)
             grad = torch.autograd.grad(loss, x)[0]
-            x = x.detach() + self.step_size * torch.sign(grad.detach())
+            x = x + self.step_size * torch.sign(grad)
             x = torch.min(torch.max(x, inputs - self.epsilon), inputs + self.epsilon).clamp(0, 1)
-        return x
+        return x.detach()
 
 
     def _perturb_l2(self, inputs, targets, normalize_input=None):
