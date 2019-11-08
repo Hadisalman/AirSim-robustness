@@ -2,6 +2,7 @@ import argparse
 import os
 import threading
 import time
+import json
 
 import airsim
 import cv2
@@ -13,10 +14,13 @@ import torchvision.transforms as transforms
 from IPython import embed
 
 from attacks import PGD, NormalizeLayer
+from utils import PedDetectionMetrics
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
+
+output = open("./stdout.txt", mode = 'w')
 
 # Linf Whitebox
 attack_config = {
@@ -56,7 +60,7 @@ attack_config = {
 #     'est_grad': (5, 200)
 #     }
 
-ATTACK = True
+ATTACK = False
 ATTACKER = PGD(**attack_config)
 
 class Demo():
@@ -79,7 +83,7 @@ class Demo():
         self.client_ped_detection = airsim.CarClient()
         self.client_ped_detection.confirmConnection()
 
-        self.image_callback_thread = threading.Thread(target=self.repeat_timer_image_callback, args=(self.image_callback, 0.01))
+        self.image_callback_thread = threading.Thread(target=self.repeat_timer_image_callback, args=(self.image_callback, 0.001))
         self.is_image_thread_active = False
         
         #########################
@@ -107,11 +111,12 @@ class Demo():
                                             transforms.ToTensor(),
                                             # normalize
                                             ])
+        self.criterion = torch.nn.CrossEntropyLoss().cuda()
         self.model.eval()
-        test_image_no_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_2//no_ped//00000.png')
-        test_image_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_2//ped//00000.png')
+        test_image_no_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_new//no_ped//00000.png')
+        test_image_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_new//ped//00000.png')
         self._loaded_model_unit_test(test_image_ped, test_image_no_ped)
-
+        self.detection_metrics = PedDetectionMetrics()
         #########################
 
         self.car_thread = threading.Thread(target=self.drive)
@@ -122,8 +127,18 @@ class Demo():
         self.is_ped_thread_active = False
         self.is_adv_thread_active = False
         self.is_weather_thread_active = False
-        
+
+        ##############################################
+        # Segmentation Settings
+        found = self.client_images.simSetSegmentationObjectID("[\w]*", -1, True);
+        assert found
+        found = self.client_images.simSetSegmentationObjectID(mesh_name='Adv_Ped1', object_id=25)
+        assert found
+        self.ped_RGB = [133, 124, 235]
+        self.background_RGB = [130, 219, 128]
+
         self.adv_objects = [
+            'Adv_Ped1',
             'Adv_Fence',
             'Adv_Hedge',
             'Adv_Car',
@@ -148,44 +163,73 @@ class Demo():
         assert pred.max(1)[1].item() == 0, "Pedestrian detection unit test failed"
         print("Loaded detection model unit test succeeded!")
 
+    def is_ped_in_scene(self, segmentation_response):
+        img_rgb_1d = np.frombuffer(segmentation_response.image_data_uint8, dtype=np.uint8) 
+        segmentation_image = img_rgb_1d.reshape(segmentation_response.height, segmentation_response.width, 3)
+        match = self.ped_RGB == segmentation_image
+        return match.sum() > 0
+
     def image_callback(self):
-        # get uncompressed fpv cam image
         request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)]
-        # request = [airsim.ImageRequest("0", airsim.ImageType.Segmentation, False)]        
+        # request = [airsim.ImageRequest("0", airsim.ImageType.Segmentation, False, False)]
         # request = [airsim.ImageRequest("0", airsim.ImageType.DepthVis, False, False)]
 
-        response = self.client_images.simGetImages(request)
-        img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
-        img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3)
+        response = self.client_images.simGetImages(request)[0]
+        while response.height == 0 or response.width == 0:
+            time.sleep(0.001)
+            response = self.client_images.simGetImages(request)[0]
+        img_rgb_1d = np.frombuffer(response.image_data_uint8, dtype=np.uint8) 
+        img_rgb = img_rgb_1d.reshape(response.height, response.width, 3)
+
+        print(self.is_ped_in_scene())
+
         cv2.imshow("img_rgb", img_rgb)
         cv2.waitKey(1)
 
     def repeat_timer_image_callback(self, task, period):
+        max_count = 50
+        count = 0
+        times = np.zeros((max_count, ))
         while self.is_image_thread_active:
+            start_time = time.time()
             task()
             time.sleep(period)
+            times[count] = time.time() - start_time
+            count += 1
+            if count == max_count:
+                count = 0
+                avg_time = times.mean()
+                avg_freq = 1/avg_time
+                print('Average camera stream over {} iterations: {} ms | {} Hz'.format(max_count, avg_time*1000, avg_freq))
 
 
     def ped_detection_callback(self):
         # get uncompressed fpv cam image
-        request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)]
-        response = self.client_ped_detection.simGetImages(request)[0]
-        while response.height == 0 or response.width == 0:
+        request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False),
+                airsim.ImageRequest("0", airsim.ImageType.Segmentation, False, False)]
+        response = self.client_ped_detection.simGetImages(request)
+        while response[0].height == 0 or response[0].width == 0:
             time.sleep(0.001)
-            response = self.client_ped_detection.simGetImages(request)[0]
+            response = self.client_ped_detection.simGetImages(request)
 
-        img_rgb_1d = np.frombuffer(response.image_data_uint8, dtype=np.uint8) 
-        img_rgb = img_rgb_1d.reshape(response.height, response.width, 3)
+        img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
+        img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3)
         img_rgb = PIL.Image.fromarray(img_rgb)
         X = self.transform_test(img_rgb).unsqueeze(0).cuda()
+        targets = torch.full(X.shape[:1], 1).long().cuda()
         if ATTACK:
-            targets = torch.full(X.shape[:1], 1).long().cuda()
             X = ATTACKER.attack(self.model, X, targets, self.normalize)
             cv2.imshow("adversarial image", X.cpu().numpy()[0].transpose(1,2,0))
             cv2.waitKey(1)
         X = self.normalize(X)
         pred = self.model(X)
-        print("Pedestrian detected? {}".format(pred.max(1)[1].item()))
+        is_ped_detected = pred.max(1)[1].item()
+        self.detection_metrics.update(pred=is_ped_detected, ground_truth=self.is_ped_in_scene(response[1]))
+        
+        loss = self.criterion(pred, targets)
+        # print("Pedestrian detected? {}".format(is_ped_detected), file=output, flush=True)
+        # print("Loss =  {}".format(loss.item()), file=output, flush=True)
+        # print("Pedestrian detected? {}".format(is_ped_detected))
 
     def repeat_timer_ped_detection_callback(self, task, period):
         max_count = 50
@@ -204,7 +248,7 @@ class Demo():
                 print('Average pedestrian detection over {} iterations: {} ms | {} Hz'.format(max_count, avg_time*1000, avg_freq))
 
 
-    def move_pedestrian(self, obj='Hadi'):
+    def move_pedestrian(self, obj='Adv_Ped1'):
         end_pose = airsim.Pose()
         delta = airsim.Vector3r(0, -30, 0)
 
@@ -254,6 +298,9 @@ class Demo():
         if self.is_ped_detection_thread_active:
             self.is_ped_detection_thread_active = False
             self.ped_detection_callback_thread.join()
+            print(json.dumps(self.detection_metrics.get(), 
+                            indent=4, sort_keys=False), 
+                            file=output, flush=True)
             print("Stopped pedestrian detection callback thread.")
 
     def start_ped_thread(self):
@@ -333,7 +380,6 @@ class Demo():
             self.client_weather.simSetWeatherParameter(att, 0.0)
         self.client_weather.simEnableWeather(False)
 
-
     def get_trajectory(self, start_pose, end_pose, num_waypoints=10):
         inc_vec = (end_pose.position - start_pose.position)/(num_waypoints - 1)
         traj = []
@@ -344,7 +390,6 @@ class Demo():
             traj[-1].position = traj[-2].position + inc_vec
         traj.append(end_pose)
         return traj
-
 
     def drive(self):
         car_controls = airsim.CarControls()
@@ -440,6 +485,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     demo = Demo(args)
+    
+    # demo.client_car.simSetTimeOfDay(is_enabled=True, 
+    #                             start_datetime = "", 
+    #                             is_start_datetime_dst = False, 
+    #                             celestial_clock_speed = 100, 
+    #                             update_interval_secs = 1, 
+    #                             move_sun = True)
 
     embed()
 
@@ -447,7 +499,7 @@ if __name__ == "__main__":
     time.sleep(3)
     # demo.start_car_thread()
     # demo.start_adv_thread()
-    # demo.start_ped_thread()
+    demo.start_ped_thread()
     # demo.start_weather_thread()
     # demo.start_image_callback_thread()
 
@@ -458,6 +510,6 @@ if __name__ == "__main__":
     demo.stop_adv_thread()
     demo.stop_weather_thread()
     demo.stop_car_thread()
-    # demo.stop_image_callback_thread()
+    demo.stop_image_callback_thread()
    
     demo.reset()

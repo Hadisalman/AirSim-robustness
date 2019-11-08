@@ -16,6 +16,7 @@ import torchvision.transforms as transforms
 from IPython import embed
 import numpy as np
 from datasets import ZippedDataset, splitTrainTest
+from utils import AverageMeter, accuracy, init_logfile, log, copy_code
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -290,65 +291,6 @@ def save_checkpoint(state, is_best, outdir='', filename='checkpoint.pth.tar'):
         shutil.copyfile(filename, os.path.join(outdir,'model_best.pth.tar'))
 
 
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
-
-def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
-    maxk = max(topk)
-    batch_size = target.size(0)
-
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0)
-        res.append(correct_k.mul_(100.0 / batch_size))
-    return res
-
-def init_logfile(filename: str, text: str):
-    f = open(filename, 'w')
-    f.write(text+"\n")
-    f.close()
-
-def log(filename: str, text: str):
-    f = open(filename, 'a')
-    f.write(text+"\n")
-    f.close()
-
-def copy_code(outdir):
-    """Copies files to the outdir to store complete script with each experiment"""
-    code = []
-    exclude = set([])
-    for root, _, files in os.walk("./code", topdown=True):
-        for f in files:
-            if not f.endswith('.py'):
-                continue
-            code += [(root,f)]
-
-    for r, f in code:
-        codedir = os.path.join(outdir,r)
-        if not os.path.exists(codedir):
-            os.mkdir(codedir)
-        shutil.copy2(os.path.join(r,f), os.path.join(codedir,f))
-    print("Code copied to '{}'".format(outdir))
 
 if __name__ == '__main__':
     main()

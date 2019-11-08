@@ -23,6 +23,10 @@ class ped_recognition_dataset(object):
         
         self.scene_objs = self.client.simListSceneObjects()
 
+        self.camera_request = [
+                airsim.ImageRequest("0", airsim.ImageType.Scene, False, False),
+                airsim.ImageRequest("0", airsim.ImageType.Segmentation, False, False)]        
+
         ########################################################
         # Scene Hard-coded params
         # Car_R_Start, Car_L_Start, Car_R_End, Car_L_End
@@ -41,25 +45,31 @@ class ped_recognition_dataset(object):
         self.car_pose = self.client.simGetVehiclePose()
         self.euler_car = list(airsim.to_eularian_angles(self.car_pose.orientation))
 
+        self.ped_object_name = 'Adv_Ped1'
         self.PED_START = self.client.simGetObjectPose('Ped_Start')
         self.PED_END = self.client.simGetObjectPose('Ped_End')
         self.x_value_range_ped = (self.PED_START.position.x_val, self.PED_END.position.x_val)
         self.y_value_range_ped = (self.PED_START.position.y_val, self.PED_END.position.y_val)
         self.yaw_value_range_ped = (-180*np.pi/180, 180*np.pi/180)
-        self.ped_pose = self.client.simGetObjectPose('Hadi')
+        self.ped_pose = self.client.simGetObjectPose(self.ped_object_name)
         self.euler_ped = list(airsim.to_eularian_angles(self.ped_pose.orientation))
         
-        self.no_ped_pose = self.client.simGetObjectPose('Hadi')
+        self.no_ped_pose = self.client.simGetObjectPose(self.ped_object_name)
         self.no_ped_pose.position.x_val += 100
         
         # Segmentation params
-        found = self.client.simSetSegmentationObjectID(mesh_name="Hadi", object_id=2);
+        found = self.client.simSetSegmentationObjectID("[\w]*", -1, True);
         assert found
-        # https://microsoft.github.io/AirSim/docs/seg_rgbs.txt
-        self.RGB_ped = [112, 105, 191] # Corresponding to object_id=2
+        found = self.client.simSetSegmentationObjectID(mesh_name='Adv_Ped1', object_id=25)
+        assert found
+        self.ped_RGB = [133, 124, 235]
+        self.background_RGB = [130, 219, 128]
 
         # Save dir
-        self.dataset_path = "C:/Users/hasalman/Desktop/datasets/pedestrian_recognition_2"
+        self.dataset_path = "C:/Users/hasalman/Desktop/datasets/pedestrian_recognition_new"
+        if os.path.isdir(self.dataset_path):
+            raise Exception('This dataset directory already exists.'
+                    'Please change it to avoid overwriting the old datasets')
         self.no_ped_path = os.path.join(self.dataset_path, 'no_ped')
         self.ped_path = os.path.join(self.dataset_path, 'ped')
         if not os.path.isdir(self.no_ped_path):
@@ -77,42 +87,47 @@ class ped_recognition_dataset(object):
                 print("Generated {} data samples out of {} so far".format(self.curr_idx+1, self.num_samples))
             self.sample_data_point()
 
+    def is_ped_in_scene(self, segmentation_response):
+        img_rgb_1d = np.frombuffer(segmentation_response.image_data_uint8, dtype=np.uint8) 
+        segmentation_image = img_rgb_1d.reshape(segmentation_response.height, segmentation_response.width, 3)
+        match = self.ped_RGB == segmentation_image
+        return match.sum() > 0
+
     def sample_data_point(self):
         # Sample car position
-        x_car = randomSample(self.x_value_range_car)
-        y_car = randomSample(self.y_value_range_car)        
-        self.car_pose.position.x_val = x_car
-        self.car_pose.position.y_val = y_car
-        self.euler_car[2] = randomSample(self.yaw_value_range_car)
-        self.car_pose.orientation = airsim.to_quaternion(*self.euler_car)
-        self.client.simSetVehiclePose(self.car_pose, ignore_collison=True)
+        while True:
+            x_car = randomSample(self.x_value_range_car)
+            y_car = randomSample(self.y_value_range_car)        
+            self.car_pose.position.x_val = x_car
+            self.car_pose.position.y_val = y_car
+            self.euler_car[2] = randomSample(self.yaw_value_range_car)
+            self.car_pose.orientation = airsim.to_quaternion(*self.euler_car)
+            self.client.simSetVehiclePose(self.car_pose, ignore_collison=True)
 
-        # Sample pedestrian position
-        x_ped = randomSample(self.x_value_range_ped)
-        y_ped = randomSample(self.y_value_range_ped)
-        self.ped_pose.position.x_val = x_ped
-        self.ped_pose.position.y_val = y_ped
-        self.euler_ped[2] = randomSample(self.yaw_value_range_ped)
-        self.ped_pose.orientation = airsim.to_quaternion(*self.euler_ped)
-        self.client.simSetObjectPose('Hadi', self.ped_pose)
+            # Sample pedestrian position
+            x_ped = randomSample(self.x_value_range_ped)
+            y_ped = randomSample(self.y_value_range_ped)
+            self.ped_pose.position.x_val = x_ped
+            self.ped_pose.position.y_val = y_ped
+            self.euler_ped[2] = randomSample(self.yaw_value_range_ped)
+            self.ped_pose.orientation = airsim.to_quaternion(*self.euler_ped)
+            self.client.simSetObjectPose(self.ped_object_name, self.ped_pose)
 
-        request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)]        
-        response = self.client.simGetImages(request)
+            response = self.client.simGetImages(self.camera_request)
+    
+            # Check of pedestrian is in the f.o.v of the car using segmentation ground truth
+            # if yes break the loop, if not, resample car and pedestian poses
+            if self.is_ped_in_scene(response[1]):
+                break
+
+        # Save "ped"-class image
         self.writeImgToFile(image_response=response[0], path=self.ped_path)
 
-        # Remove Ped from scene, then save a "no_ped" image
-        self.client.simSetObjectPose('Hadi', self.no_ped_pose)
-        response = self.client.simGetImages(request)
+        # Remove Ped from scene, then save a "no_ped"-class image
+        self.client.simSetObjectPose(self.ped_object_name, self.no_ped_pose)
+        response = self.client.simGetImages(self.camera_request)
         self.writeImgToFile(image_response=response[0], path=self.no_ped_path)
-
-        #Check of pedestrian is in fov of the car using segmentation ground truth
-        # embed()
-
-        # request = [airsim.ImageRequest("0", airsim.ImageType.Segmentation, False, False)]        
-        # response = self.client.simGetImages(request)
-        # img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
-        # img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3) #reshape array to 3 channel image array H X W X 3
-
+        
         self.curr_idx += 1
 
 
