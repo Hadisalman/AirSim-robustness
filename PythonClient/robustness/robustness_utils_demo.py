@@ -1,8 +1,9 @@
 import argparse
+import copy
+import json
 import os
 import threading
 import time
-import json
 
 import airsim
 import cv2
@@ -53,8 +54,8 @@ attack_config = {
 # L2 Blackbox
 # attack_config = {
 #     'random_start' : True, 
-#     'step_size' : 500./255,
-#     'epsilon' : 4000./255, 
+#     'step_size' : 1000./255,
+#     'epsilon' : 6000./255, 
 #     'num_steps' : 8, 
 #     'norm' : 'l2',
 #     'est_grad': (5, 200)
@@ -83,12 +84,14 @@ class Demo():
         self.client_ped_detection = airsim.CarClient()
         self.client_ped_detection.confirmConnection()
 
-        self.image_callback_thread = threading.Thread(target=self.repeat_timer_image_callback, args=(self.image_callback, 0.001))
+        self.image_callback_thread = threading.Thread(target=self.repeat_timer_image_callback, 
+                                                    args=(self.image_callback, 0.001))
         self.is_image_thread_active = False
         
         #########################
         # Pedestrian detection
-        self.ped_detection_callback_thread = threading.Thread(target=self.repeat_timer_ped_detection_callback, args=(self.ped_detection_callback, 0.01))
+        self.ped_detection_callback_thread = threading.Thread(target=self.repeat_timer_ped_detection_callback, 
+                                                            args=(self.ped_detection_callback, 0.01))
         self.is_ped_detection_thread_active = False
 
         checkpoint = torch.load(args.model)
@@ -121,7 +124,7 @@ class Demo():
 
         self.car_thread = threading.Thread(target=self.drive)
         self.ped_thread = threading.Thread(target=self.move_pedestrian)
-        self.adv_thread = threading.Thread(target=self.start_attack)
+        self.adv_thread = threading.Thread(target=self.coordinate_ascent_object_attack)
         self.weather_thread = threading.Thread(target=self.demo_weather)
         self.is_car_thread_active = False
         self.is_ped_thread_active = False
@@ -137,18 +140,31 @@ class Demo():
         self.ped_RGB = [133, 124, 235]
         self.background_RGB = [130, 219, 128]
 
+        #############################################
+        # Adversarial objects
         self.adv_objects = [
-            'Adv_Ped1',
+            # 'AAA',
+            # 'AAA2',
+            'Adv_House',
             'Adv_Fence',
             'Adv_Hedge',
             'Adv_Car',
-            'Adv_House',
             'Adv_Tree'
             ]
 
         self.scene_objs = self.client_car.simListSceneObjects()
         for obj in self.adv_objects:
             print('{} exists? {}'.format(obj, obj in self.scene_objs))
+
+        for obj in ['BoundLowerLeft', 'BoundUpperRight']:
+            print('{} exists? {}'.format(obj, obj in self.scene_objs))
+
+        self.BoundLowerLeft = self.client_adv.simGetObjectPose('BoundLowerLeft')
+        self.BoundUpperRight = self.client_adv.simGetObjectPose('BoundUpperRight')
+
+        self.x_range_adv_objects_bounds = (self.BoundLowerLeft.position.x_val, self.BoundUpperRight.position.x_val)
+        self.y_range_adv_objects_bounds = (self.BoundLowerLeft.position.y_val, self.BoundUpperRight.position.y_val)
+
 
     def _loaded_model_unit_test(self, test_image_True, test_image_False):
         img = PIL.Image.open(test_image_True)
@@ -212,24 +228,28 @@ class Demo():
             time.sleep(0.001)
             response = self.client_ped_detection.simGetImages(request)
 
+        ground_truth = self.is_ped_in_scene(response[1])
         img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
         img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3)
         img_rgb = PIL.Image.fromarray(img_rgb)
         X = self.transform_test(img_rgb).unsqueeze(0).cuda()
-        targets = torch.full(X.shape[:1], 1).long().cuda()
+        
+        # target = torch.full(X.shape[:1], 1).long().cuda()
+        target = torch.tensor([ground_truth], dtype=torch.long).cuda()
         if ATTACK:
-            X = ATTACKER.attack(self.model, X, targets, self.normalize)
+            X = ATTACKER.attack(self.model, X, target, self.normalize)
             cv2.imshow("adversarial image", X.cpu().numpy()[0].transpose(1,2,0))
             cv2.waitKey(1)
         X = self.normalize(X)
         pred = self.model(X)
         is_ped_detected = pred.max(1)[1].item()
-        self.detection_metrics.update(pred=is_ped_detected, ground_truth=self.is_ped_in_scene(response[1]))
+        self.detection_metrics.update(pred=is_ped_detected, ground_truth=ground_truth)
         
-        loss = self.criterion(pred, targets)
+        loss = self.criterion(pred, target)
         # print("Pedestrian detected? {}".format(is_ped_detected), file=output, flush=True)
         # print("Loss =  {}".format(loss.item()), file=output, flush=True)
         # print("Pedestrian detected? {}".format(is_ped_detected))
+        return is_ped_detected, is_ped_detected==ground_truth, loss
 
     def repeat_timer_ped_detection_callback(self, task, period):
         max_count = 50
@@ -289,6 +309,7 @@ class Demo():
             print("Stopped image callback thread.")
 
     def start_ped_detection_callback_thread(self):
+        self.detection_metrics.reset()
         if not self.is_ped_detection_thread_active:
             self.is_ped_detection_thread_active = True
             self.ped_detection_callback_thread.start()
@@ -340,7 +361,7 @@ class Demo():
             self.weather_thread.join()
             print("Stopped weather thread.")
 
-    def start_attack(self):
+    def move_on_line_attack(self):
         end_pose = airsim.Pose()
         delta = airsim.Vector3r(0, -4, 0)
         for obj in self.adv_objects:
@@ -364,6 +385,43 @@ class Demo():
                     break
                 self.client_adv.simSetObjectPose(obj, way_point)
                 time.sleep(0.01)
+
+    def coordinate_ascent_object_attack(self, resolution=10):
+        x_range = np.linspace(self.x_range_adv_objects_bounds[0], self.x_range_adv_objects_bounds[1], resolution)
+        y_range = np.linspace(self.y_range_adv_objects_bounds[0], self.y_range_adv_objects_bounds[1], resolution)
+        xv, yv = np.meshgrid(x_range, y_range)
+
+        self.adv_poses = []
+
+        best_loss = -1
+        for _ in range(1):
+            for obj in self.adv_objects:
+                pose = self.client_adv.simGetObjectPose(obj)
+                best_pose = copy.deepcopy(pose)
+                grid2d_poses_list = zip(xv.flatten(), yv.flatten())
+                for grid2d_pose in grid2d_poses_list:
+                    pose.position.x_val = grid2d_pose[0]
+                    pose.position.y_val = grid2d_pose[1]
+                    self.client_adv.simSetObjectPose(obj, pose)
+                    if not self.is_adv_thread_active:
+                        break
+                    _, correct, loss = self.ped_detection_callback()
+                    if loss > best_loss:
+                        best_loss = loss
+                        best_pose = copy.deepcopy(pose)
+                    # if not correct:
+                    #     new_pose = copy.deepcopy(pose)
+                    #     self.adv_poses.append((loss.item(), new_pose))
+                print('Best loss so far {}'.format(best_loss.item()))
+                # def getKey(item):
+                #     return item[0]
+                # self.adv_poses = sorted(self.adv_poses, key=getKey)
+                # print(self.adv_poses)
+                # self.client_adv.simSetObjectPose(obj, self.adv_poses[-1][1])
+                self.client_adv.simSetObjectPose(obj, best_pose)
+        print(json.dumps(self.detection_metrics.get(), 
+                        indent=4, sort_keys=False), 
+                        file=output, flush=True)
 
     def demo_weather(self):
         ###############################################
@@ -495,11 +553,11 @@ if __name__ == "__main__":
 
     embed()
 
-    demo.start_ped_detection_callback_thread()
-    time.sleep(3)
+    # demo.start_ped_detection_callback_thread()
+    # time.sleep(3)
     # demo.start_car_thread()
-    # demo.start_adv_thread()
-    demo.start_ped_thread()
+    demo.start_adv_thread()
+    # demo.start_ped_thread()
     # demo.start_weather_thread()
     # demo.start_image_callback_thread()
 
