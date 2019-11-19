@@ -106,8 +106,6 @@ class Demo():
             self.model = torch.nn.DataParallel(self.model).cuda()
         self.model.load_state_dict(checkpoint['state_dict'])
         print("Loading successful. Test accuracy of this model is: {} %".format(checkpoint['test_acc']))
-        # self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-        #                                 std=[0.229, 0.224, 0.225])
         self.normalize = NormalizeLayer(means=[0.485, 0.456, 0.406], sds=[0.229, 0.224, 0.225])
         self.transform_test = transforms.Compose([
                                             transforms.Resize(args.img_size),
@@ -186,18 +184,20 @@ class Demo():
         return match.sum() > 0
 
     def image_callback(self):
-        request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)]
+        request = [airsim.ImageRequest("0", airsim.ImageType.Scene, False, False),
+                    airsim.ImageRequest("0", airsim.ImageType.Segmentation, False, False)
+                    ]
         # request = [airsim.ImageRequest("0", airsim.ImageType.Segmentation, False, False)]
         # request = [airsim.ImageRequest("0", airsim.ImageType.DepthVis, False, False)]
 
-        response = self.client_images.simGetImages(request)[0]
-        while response.height == 0 or response.width == 0:
+        response = self.client_images.simGetImages(request)
+        while response[0].height == 0 or response[0].width == 0:
             time.sleep(0.001)
-            response = self.client_images.simGetImages(request)[0]
-        img_rgb_1d = np.frombuffer(response.image_data_uint8, dtype=np.uint8) 
-        img_rgb = img_rgb_1d.reshape(response.height, response.width, 3)
+            response[0] = self.client_images.simGetImages(request)[0]
+        img_rgb_1d = np.frombuffer(response[0].image_data_uint8, dtype=np.uint8) 
+        img_rgb = img_rgb_1d.reshape(response[0].height, response[0].width, 3)
 
-        print(self.is_ped_in_scene())
+        # print(self.is_ped_in_scene(response[1]))
 
         cv2.imshow("img_rgb", img_rgb)
         cv2.waitKey(1)
@@ -287,79 +287,79 @@ class Demo():
         if not self.is_car_thread_active:
             self.is_car_thread_active = True
             self.car_thread.start()
-            print("Started car thread")
+            print("-->[Started car thread]")
 
     def stop_car_thread(self):
         if self.is_car_thread_active:
             self.is_car_thread_active = False
             self.car_thread.do_run = False
             self.car_thread.join()
-            print("Stopped car thread.")
+            print("-->[Stopped car thread]")
 
     def start_image_callback_thread(self):
         if not self.is_image_thread_active:
             self.is_image_thread_active = True
             self.image_callback_thread.start()
-            print("Started image callback thread")
+            print("-->[Started image callback thread]")
 
     def stop_image_callback_thread(self):
         if self.is_image_thread_active:
             self.is_image_thread_active = False
             self.image_callback_thread.join()
-            print("Stopped image callback thread.")
+            print("-->[Stopped image callback thread]")
 
     def start_ped_detection_callback_thread(self):
         self.detection_metrics.reset()
         if not self.is_ped_detection_thread_active:
             self.is_ped_detection_thread_active = True
             self.ped_detection_callback_thread.start()
-            print("Started pedestrian detection callback thread")
+            print("-->[Started pedestrian detection callback thread]")
 
     def stop_ped_detection_callback_thread(self):
         if self.is_ped_detection_thread_active:
             self.is_ped_detection_thread_active = False
             self.ped_detection_callback_thread.join()
             print(json.dumps(self.detection_metrics.get(), 
-                            indent=4, sort_keys=False), 
+                            indent=2, sort_keys=False), 
                             file=output, flush=True)
-            print("Stopped pedestrian detection callback thread.")
+            print("-->[Stopped pedestrian detection callback thread]")
 
     def start_ped_thread(self):
         if not self.is_ped_thread_active:
             self.is_ped_thread_active = True
             self.ped_thread.start()
-            print("Started ped thread")
+            print("-->[Started ped thread]")
 
     def stop_ped_thread(self):
         if self.is_ped_thread_active:
             self.is_ped_thread_active = False
             self.ped_thread.do_run = False
             self.ped_thread.join()
-            print("Stopped ped thread.")
+            print("-->[Stopped ped thread]")
 
     def start_adv_thread(self):
         if not self.is_adv_thread_active:
             self.is_adv_thread_active = True
             self.adv_thread.start()
-            print("Started adv thread")
+            print("-->[Started adv thread]")
 
     def stop_adv_thread(self):
         if self.is_adv_thread_active:
             self.is_adv_thread_active = False
             self.adv_thread.join()
-            print("Stopped adv thread.")
+            print("-->[Stopped adv thread]")
 
     def start_weather_thread(self):
         if not self.is_weather_thread_active:
             self.is_weather_thread_active = True
             self.weather_thread.start()
-            print("Started weather thread")
+            print("-->[Started weather thread]")
 
     def stop_weather_thread(self):
         if self.is_weather_thread_active:
             self.is_weather_thread_active = False
             self.weather_thread.join()
-            print("Stopped weather thread.")
+            print("-->[Stopped weather thread]")
 
     def move_on_line_attack(self):
         end_pose = airsim.Pose()
@@ -386,7 +386,7 @@ class Demo():
                 self.client_adv.simSetObjectPose(obj, way_point)
                 time.sleep(0.01)
 
-    def coordinate_ascent_object_attack(self, resolution=10):
+    def coordinate_ascent_object_attack(self, resolution=10, num_iter=1):
         x_range = np.linspace(self.x_range_adv_objects_bounds[0], self.x_range_adv_objects_bounds[1], resolution)
         y_range = np.linspace(self.y_range_adv_objects_bounds[0], self.y_range_adv_objects_bounds[1], resolution)
         xv, yv = np.meshgrid(x_range, y_range)
@@ -394,7 +394,7 @@ class Demo():
         self.adv_poses = []
 
         best_loss = -1
-        for _ in range(1):
+        for _ in range(num_iter):
             for obj in self.adv_objects:
                 pose = self.client_adv.simGetObjectPose(obj)
                 best_pose = copy.deepcopy(pose)
@@ -409,19 +409,41 @@ class Demo():
                     if loss > best_loss:
                         best_loss = loss
                         best_pose = copy.deepcopy(pose)
-                    # if not correct:
-                    #     new_pose = copy.deepcopy(pose)
-                    #     self.adv_poses.append((loss.item(), new_pose))
                 print('Best loss so far {}'.format(best_loss.item()))
-                # def getKey(item):
-                #     return item[0]
-                # self.adv_poses = sorted(self.adv_poses, key=getKey)
-                # print(self.adv_poses)
-                # self.client_adv.simSetObjectPose(obj, self.adv_poses[-1][1])
+
                 self.client_adv.simSetObjectPose(obj, best_pose)
-        print(json.dumps(self.detection_metrics.get(), 
-                        indent=4, sort_keys=False), 
-                        file=output, flush=True)
+        
+        # dump results into a json file
+        self.dump_env_config_to_json(path='./results.json')
+
+    def exhaustive_search_object_attack(self, resolution=10):
+        x_range = np.linspace(self.x_range_adv_objects_bounds[0], self.x_range_adv_objects_bounds[1], resolution)
+        y_range = np.linspace(self.y_range_adv_objects_bounds[0], self.y_range_adv_objects_bounds[1], resolution)
+        xv, yv = np.meshgrid(x_range, y_range)
+
+        self.adv_poses = []
+
+        best_loss = -1
+        for obj in self.adv_objects:
+            pose = self.client_adv.simGetObjectPose(obj)
+            best_pose = copy.deepcopy(pose)
+            grid2d_poses_list = zip(xv.flatten(), yv.flatten())
+            for grid2d_pose in grid2d_poses_list:
+                pose.position.x_val = grid2d_pose[0]
+                pose.position.y_val = grid2d_pose[1]
+                self.client_adv.simSetObjectPose(obj, pose)
+                if not self.is_adv_thread_active:
+                    break
+                _, correct, loss = self.ped_detection_callback()
+                if loss > best_loss:
+                    best_loss = loss
+                    best_pose = copy.deepcopy(pose)
+            print('Best loss so far {}'.format(best_loss.item()))
+
+            self.client_adv.simSetObjectPose(obj, best_pose)
+        
+        # dump results into a json file
+        self.dump_env_config_to_json(path='./results.json')
 
     def demo_weather(self):
         ###############################################
@@ -531,35 +553,66 @@ class Demo():
         self.client_car.reset()
         self.client_car.enableApiControl(False)
 
-
+    def dump_env_config_to_json(self, path):
+        with open(path, 'w') as f:
+            output = {}
+            for obj in self.adv_objects:
+                output[obj] = {} 
+                pose = self.client_adv.simGetObjectPose(obj)
+                output[obj]['X'] = pose.position.x_val
+                output[obj]['Y'] = pose.position.y_val
+                output[obj]['Z'] = pose.position.z_val
+                euler_angles = airsim.to_eularian_angles(pose.orientation)
+                output[obj]['Pitch'] = euler_angles[0]
+                output[obj]['Roll'] = euler_angles[1]
+                output[obj]['Yaw'] = euler_angles[2]
+            # print(output)
+            json.dump(output, f, indent=2, sort_keys=False)
+            
+    def update_env_from_config(self, path):
+        with open(path, 'r') as f:
+            dic = json.load(f)
+            for obj_name, obj_pose in dic.items():
+                assert obj_name in self.scene_objs, 'Object {} is not found in the scene'.format(obj)
+                pose = airsim.Pose(airsim.Vector3r(obj_pose['X'], obj_pose['Y'], obj_pose['Z']), 
+                            airsim.to_quaternion(obj_pose['Pitch'], obj_pose['Roll'], obj_pose['Yaw']))
+                self.client_adv.simSetObjectPose(obj_name, pose)
+                print('-->[Updated the position of the {}]'.format(obj_name))
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
+    parser = argparse.ArgumentParser(description='Demo for the airsim-robustness package')
     parser.add_argument('model', metavar='DIR',
                         help='path to pretrained model')
+    parser.add_argument('--demo-id', type=int, choices=[0, 1, 2, 3],
+                        help='which task of the demo to excute'
+                        '0 -> image callback thread'
+                        '1 -> test all threads'
+                        '2 -> search for 3D advesarial configuration'
+                        '3 -> read adv config from json and run ped recognition'
+                        )
     parser.add_argument('--img-size', default=224, type=int, metavar='N',
                         help='size of rgb image (assuming equal hight and width)')
 
     args = parser.parse_args()
 
     demo = Demo(args)
+
+    if args.demo_id == 0:
+        demo.start_image_callback_thread()
+
+    if args.demo_id == 1:
+        demo.start_ped_detection_callback_thread()
+        time.sleep(3)
+        demo.start_car_thread()
+        demo.start_ped_thread()
+        demo.start_weather_thread()
     
-    # demo.client_car.simSetTimeOfDay(is_enabled=True, 
-    #                             start_datetime = "", 
-    #                             is_start_datetime_dst = False, 
-    #                             celestial_clock_speed = 100, 
-    #                             update_interval_secs = 1, 
-    #                             move_sun = True)
+    if args.demo_id == 2:
+        demo.start_adv_thread()
 
-    embed()
-
-    # demo.start_ped_detection_callback_thread()
-    # time.sleep(3)
-    # demo.start_car_thread()
-    demo.start_adv_thread()
-    # demo.start_ped_thread()
-    # demo.start_weather_thread()
-    # demo.start_image_callback_thread()
+    elif args.demo_id == 3:
+        demo.update_env_from_config(path='./results.json')
+        demo.start_ped_detection_callback_thread()
 
     embed()
 

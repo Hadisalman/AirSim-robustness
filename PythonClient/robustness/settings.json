@@ -7,7 +7,13 @@
         "ImageType": 0,
         "Width": 256,
         "Height": 256,
-        "FOV_Degrees": 60
+        "FOV_Degrees": 40
+      },
+      {
+        "ImageType": 5,
+        "Width": 256,
+        "Height": 256,
+        "FOV_Degrees": 40
       }
     ]
   }
