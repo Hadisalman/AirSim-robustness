@@ -40,10 +40,10 @@ class PedDetectionMetrics(object):
             'Accuracy': self.Accuracy,
             'Precision': self.Precision,
             'Recall': self.Recall,
-            'FP':int(self.False_Positive.sum),
-            'FN':int(self.False_Negative.sum),
-            'TP':int(self.True_Positive.sum),
-            'TN':int(self.True_Negative.sum),
+            'False Positive':int(self.False_Positive.sum),
+            'False Negative':int(self.False_Negative.sum),
+            'True Positive':int(self.True_Positive.sum),
+            'True Negative':int(self.True_Negative.sum),
         }
 
 class AverageMeter(object):
