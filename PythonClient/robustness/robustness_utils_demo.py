@@ -16,6 +16,7 @@ from IPython import embed
 
 from attacks import PGD, NormalizeLayer
 from utils import PedDetectionMetrics
+from move_actors import car_dummy_move, ped_dummy_move
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -122,7 +123,9 @@ class Demo():
 
         self.car_thread = threading.Thread(target=self.drive)
         self.ped_thread = threading.Thread(target=self.move_pedestrian)
-        self.adv_thread = threading.Thread(target=self.coordinate_ascent_object_attack)
+        self.adv_attack_resolution = args.resolution_coord_descent
+        self.num_iter = args.num_iter
+        self.adv_thread = threading.Thread(target=self.coordinate_ascent_object_attack, args=(self.adv_attack_resolution, self.num_iter))
         self.weather_thread = threading.Thread(target=self.demo_weather)
         self.is_car_thread_active = False
         self.is_ped_thread_active = False
@@ -131,9 +134,13 @@ class Demo():
 
         ##############################################
         # Segmentation Settings
+        self.ped_object_name = 'Adv_Ped1'
+        self.no_ped_pose = self.client_ped.simGetObjectPose(self.ped_object_name)
+        self.no_ped_pose.position.z_val += 100 # put ped under the ground
         found = self.client_images.simSetSegmentationObjectID("[\w]*", -1, True);
         assert found
-        found = self.client_images.simSetSegmentationObjectID(mesh_name='Adv_Ped1', object_id=25)
+        found = self.client_images.simSetSegmentationObjectID(mesh_name=self.ped_object_name, object_id=25)
+        found = self.client_images.simSetSegmentationObjectID(mesh_name=self.ped_object_name+'_walking', object_id=25)
         assert found
         self.ped_RGB = [133, 124, 235]
         self.background_RGB = [130, 219, 128]
@@ -149,7 +156,8 @@ class Demo():
             'Adv_Car',
             'Adv_Tree'
             ]
-
+        
+        self.adv_config_path = args.adv_config_path
         self.scene_objs = self.client_car.simListSceneObjects()
         for obj in self.adv_objects:
             print('{} exists? {}'.format(obj, obj in self.scene_objs))
@@ -251,6 +259,15 @@ class Demo():
         # print("Pedestrian detected? {}".format(is_ped_detected))
         return is_ped_detected, is_ped_detected==ground_truth, loss
 
+    def log_detection_metrics(self):
+        metrics = self.detection_metrics.get()
+        for metric_name, metric_val in metrics.items():
+            if metric_name in ['False Negative', 'False Positive']:
+                severity = 2
+            else:
+                severity = 1
+            self.client_ped_detection.simPrintLogMessage(message=metric_name+' : ', message_param=str(metric_val), severity=severity) # print in red
+
     def repeat_timer_ped_detection_callback(self, task, period):
         max_count = 50
         count = 0
@@ -266,23 +283,11 @@ class Demo():
                 avg_time = times.mean()
                 avg_freq = 1/avg_time
                 print('Average pedestrian detection over {} iterations: {} ms | {} Hz'.format(max_count, avg_time*1000, avg_freq))
-
+            self.log_detection_metrics()
 
     def move_pedestrian(self, obj='Adv_Ped1'):
-        end_pose = airsim.Pose()
-        delta = airsim.Vector3r(0, -30, 0)
+        ped_dummy_move(self, obj)
 
-        pose = self.client_ped.simGetObjectPose(obj)
-        end_pose.orientation = pose.orientation
-        end_pose.position = pose.position
-        end_pose.position += delta
-        traj = self.get_trajectory(pose, end_pose, 1000)
-        for way_point in traj:
-            if not self.is_ped_thread_active:
-                break
-            self.client_ped.simSetObjectPose(obj, way_point)
-            time.sleep(0.01)
-    
     def start_car_thread(self):
         if not self.is_car_thread_active:
             self.is_car_thread_active = True
@@ -361,30 +366,6 @@ class Demo():
             self.weather_thread.join()
             print("-->[Stopped weather thread]")
 
-    def move_on_line_attack(self):
-        end_pose = airsim.Pose()
-        delta = airsim.Vector3r(0, -4, 0)
-        for obj in self.adv_objects:
-            pose = self.client_adv.simGetObjectPose(obj)
-            end_pose.orientation = pose.orientation
-            end_pose.position = pose.position
-            end_pose.position += delta
-            traj = self.get_trajectory(pose, end_pose, 100)
-            for way_point in traj:
-                if not self.is_adv_thread_active:
-                    break
-                self.client_adv.simSetObjectPose(obj, way_point)
-                time.sleep(0.01)
-
-            pose = self.client_adv.simGetObjectPose(obj)
-            end_pose.position = pose.position
-            end_pose.position -= delta
-            traj = self.get_trajectory(pose, end_pose, 100)
-            for way_point in traj:
-                if not self.is_adv_thread_active:
-                    break
-                self.client_adv.simSetObjectPose(obj, way_point)
-                time.sleep(0.01)
 
     def coordinate_ascent_object_attack(self, resolution=10, num_iter=1):
         x_range = np.linspace(self.x_range_adv_objects_bounds[0], self.x_range_adv_objects_bounds[1], resolution)
@@ -395,7 +376,7 @@ class Demo():
 
         best_loss = -1
         for _ in range(num_iter):
-            for obj in self.adv_objects:
+            for obj in np.random.permutation(self.adv_objects).tolist():
                 pose = self.client_adv.simGetObjectPose(obj)
                 best_pose = copy.deepcopy(pose)
                 grid2d_poses_list = zip(xv.flatten(), yv.flatten())
@@ -413,10 +394,27 @@ class Demo():
 
                 self.client_adv.simSetObjectPose(obj, best_pose)
         
-        # dump results into a json file
-        self.dump_env_config_to_json(path='./results.json')
+            # dump results into a json file after each iteration
+            self.dump_env_config_to_json(path=self.adv_config_path)
 
-    def exhaustive_search_object_attack(self, resolution=10):
+    def spsa_object_attack(self, resolution=10, num_iter=1):
+        def calc_est_grad(func, x, y, rad, num_samples):
+            B, *_ = x.shape
+            Q = num_samples//2
+            N = len(x.shape) - 1
+            with torch.no_grad():
+                # Q * B * C * H * W
+                extender = [1]*N
+                queries = x.repeat(Q, *extender)
+                noise = torch.randn_like(queries)
+                norm = noise.view(B*Q, -1).norm(dim=-1).view(B*Q, *extender)
+                noise = noise / norm
+                noise = torch.cat([-noise, noise])
+                queries = torch.cat([queries, queries])
+                y_shape = [1] * (len(y.shape) - 1)
+                l = func(queries + rad * noise, y.repeat(2*Q, *y_shape)).view(-1, *extender) 
+                grad = (l.view(2*Q, B, *extender) * noise.view(2*Q, B, *noise.shape[1:])).mean(dim=0)
+            return grad
         x_range = np.linspace(self.x_range_adv_objects_bounds[0], self.x_range_adv_objects_bounds[1], resolution)
         y_range = np.linspace(self.y_range_adv_objects_bounds[0], self.y_range_adv_objects_bounds[1], resolution)
         xv, yv = np.meshgrid(x_range, y_range)
@@ -424,26 +422,28 @@ class Demo():
         self.adv_poses = []
 
         best_loss = -1
-        for obj in self.adv_objects:
-            pose = self.client_adv.simGetObjectPose(obj)
-            best_pose = copy.deepcopy(pose)
-            grid2d_poses_list = zip(xv.flatten(), yv.flatten())
-            for grid2d_pose in grid2d_poses_list:
-                pose.position.x_val = grid2d_pose[0]
-                pose.position.y_val = grid2d_pose[1]
-                self.client_adv.simSetObjectPose(obj, pose)
-                if not self.is_adv_thread_active:
-                    break
-                _, correct, loss = self.ped_detection_callback()
-                if loss > best_loss:
-                    best_loss = loss
-                    best_pose = copy.deepcopy(pose)
-            print('Best loss so far {}'.format(best_loss.item()))
+        for _ in range(num_iter):
+            for obj in np.random.permutation(self.adv_objects).tolist():
+                pose = self.client_adv.simGetObjectPose(obj)
+                best_pose = copy.deepcopy(pose)
+                grid2d_poses_list = zip(xv.flatten(), yv.flatten())
+                for grid2d_pose in grid2d_poses_list:
+                    pose.position.x_val = grid2d_pose[0]
+                    pose.position.y_val = grid2d_pose[1]
+                    self.client_adv.simSetObjectPose(obj, pose)
+                    if not self.is_adv_thread_active:
+                        break
+                    _, correct, loss = self.ped_detection_callback()
+                    if loss > best_loss:
+                        best_loss = loss
+                        best_pose = copy.deepcopy(pose)
+                print('Best loss so far {}'.format(best_loss.item()))
 
-            self.client_adv.simSetObjectPose(obj, best_pose)
+                self.client_adv.simSetObjectPose(obj, best_pose)
         
-        # dump results into a json file
-        self.dump_env_config_to_json(path='./results.json')
+            # dump results into a json file after each iteration
+            self.dump_env_config_to_json(path=self.adv_config_path)
+
 
     def demo_weather(self):
         ###############################################
@@ -460,112 +460,37 @@ class Demo():
             self.client_weather.simSetWeatherParameter(att, 0.0)
         self.client_weather.simEnableWeather(False)
 
-    def get_trajectory(self, start_pose, end_pose, num_waypoints=10):
-        inc_vec = (end_pose.position - start_pose.position)/(num_waypoints - 1)
-        traj = []
-        traj.append(start_pose)
-        for _ in range(num_waypoints - 2):
-            traj.append(airsim.Pose())
-            traj[-1].orientation = traj[-2].orientation
-            traj[-1].position = traj[-2].position + inc_vec
-        traj.append(end_pose)
-        return traj
-
     def drive(self):
-        car_controls = airsim.CarControls()
-
-        # get state of the car
-        car_state = self.client_car.getCarState()
-        print("Speed %d, Gear %d" % (car_state.speed, car_state.gear))
-
-        # go forward
-        car_controls.throttle = 0.5
-        car_controls.steering = 0
-        self.client_car.setCarControls(car_controls)
-        print("Go Forward")
-        time.sleep(3)   # let car drive a bit
-        if not self.is_car_thread_active:
-            return
-
-        # go reverse
-        car_controls.throttle = -0.5
-        car_controls.is_manual_gear = True;
-        car_controls.manual_gear = -1
-        car_controls.steering = 0
-        self.client_car.setCarControls(car_controls)
-        print("Go reverse")
-        time.sleep(3)   # let car drive a bit
-        if not self.is_car_thread_active:
-            return
-        car_controls.is_manual_gear = False; # change back gear to auto
-        car_controls.manual_gear = 0  
-
-        # Go forward
-        car_controls.throttle = 1
-        self.client_car.setCarControls(car_controls)
-        print("Go Forward")
-        time.sleep(3.5)   
-        if not self.is_car_thread_active:
-            return
-        car_controls.throttle = 0.5
-        car_controls.steering = 1
-        self.client_car.setCarControls(car_controls)
-        print("Turn Right")
-        time.sleep(1.4)
-        if not self.is_car_thread_active:
-            return
-
-
-        car_controls.throttle = 0.5
-        car_controls.steering = 0
-        self.client_car.setCarControls(car_controls)
-        print("Go Forward")
-        time.sleep(3)   
-        if not self.is_car_thread_active:
-            return
-
-
-        # apply brakes
-        car_controls.brake = 1
-        self.client_car.setCarControls(car_controls)
-        print("Apply brakes")
-        time.sleep(3)   
-        if not self.is_car_thread_active:
-            return
-        car_controls.brake = 0 #remove brake
-        self.client_car.reset()
-
-        # go forward
-        car_controls.throttle = 0.5
-        car_controls.steering = 0
-        self.client_car.setCarControls(car_controls)
-        print("Go Forward")
-        time.sleep(3)   # let car drive a bit
-        if not self.is_car_thread_active:
-            return
-        # apply brakes
-        car_controls.brake = 1
-        self.client_car.setCarControls(car_controls)
-        print("Apply brakes")
-        time.sleep(3)   
+        car_dummy_move(self)
 
     def reset(self):
         self.client_car.reset()
         self.client_car.enableApiControl(False)
 
     def dump_env_config_to_json(self, path):
+        def _populate_pose_dic(pose_dic, pose):
+            pose_dic['X'] = pose.position.x_val
+            pose_dic['Y'] = pose.position.y_val
+            pose_dic['Z'] = pose.position.z_val
+            euler_angles = airsim.to_eularian_angles(pose.orientation)
+            pose_dic['Pitch'] = euler_angles[0]
+            pose_dic['Roll'] = euler_angles[1]
+            pose_dic['Yaw'] = euler_angles[2]
+
         with open(path, 'w') as f:
             output = {}
+            output['Vehicle'] = {}
+            pose = self.client_adv.simGetVehiclePose()
+            _populate_pose_dic(output['Vehicle'], pose)
+
+            output[self.ped_object_name] = {}
+            pose = self.client_adv.simGetObjectPose(self.ped_object_name)
+            _populate_pose_dic(output[self.ped_object_name], pose)
+
             for obj in self.adv_objects:
-                output[obj] = {} 
+                output[obj] = {}
                 pose = self.client_adv.simGetObjectPose(obj)
-                output[obj]['X'] = pose.position.x_val
-                output[obj]['Y'] = pose.position.y_val
-                output[obj]['Z'] = pose.position.z_val
-                euler_angles = airsim.to_eularian_angles(pose.orientation)
-                output[obj]['Pitch'] = euler_angles[0]
-                output[obj]['Roll'] = euler_angles[1]
-                output[obj]['Yaw'] = euler_angles[2]
+                _populate_pose_dic(output[obj], pose)
             # print(output)
             json.dump(output, f, indent=2, sort_keys=False)
             
@@ -573,25 +498,34 @@ class Demo():
         with open(path, 'r') as f:
             dic = json.load(f)
             for obj_name, obj_pose in dic.items():
-                assert obj_name in self.scene_objs, 'Object {} is not found in the scene'.format(obj)
                 pose = airsim.Pose(airsim.Vector3r(obj_pose['X'], obj_pose['Y'], obj_pose['Z']), 
                             airsim.to_quaternion(obj_pose['Pitch'], obj_pose['Roll'], obj_pose['Yaw']))
-                self.client_adv.simSetObjectPose(obj_name, pose)
+                if obj_name == 'Vehicle':
+                    self.client_adv.simSetVehiclePose(pose, ignore_collison=True)
+                else:
+                    assert obj_name in self.scene_objs, 'Object {} is not found in the scene'.format(obj_name)
+                    self.client_adv.simSetObjectPose(obj_name, pose)
                 print('-->[Updated the position of the {}]'.format(obj_name))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Demo for the airsim-robustness package')
     parser.add_argument('model', metavar='DIR',
                         help='path to pretrained model')
-    parser.add_argument('--demo-id', type=int, choices=[0, 1, 2, 3],
+    parser.add_argument('--demo-id', type=int, choices=[0, 1, 2, 3, 4],
                         help='which task of the demo to excute'
                         '0 -> image callback thread'
                         '1 -> test all threads'
                         '2 -> search for 3D advesarial configuration'
-                        '3 -> read adv config from json and run ped recognition'
+                        '3 -> read adv_config.json and run ped recognition'
+                        '4 -> pixel pgd attack'
                         )
     parser.add_argument('--img-size', default=224, type=int, metavar='N',
                         help='size of rgb image (assuming equal hight and width)')
+    parser.add_argument('--resolution-coord-descent', default=10, type=int,
+                        help='resolution of coord descent 3D object adv attack')
+    parser.add_argument('--num-iter', default=1, type=int,
+                        help='number of iterators of coord descent 3D object adv attack')
+    parser.add_argument('--adv-config-path', type=str, default='./results.json')
 
     args = parser.parse_args()
 
@@ -603,16 +537,43 @@ if __name__ == "__main__":
     if args.demo_id == 1:
         demo.start_ped_detection_callback_thread()
         time.sleep(3)
-        demo.start_car_thread()
         demo.start_ped_thread()
-        demo.start_weather_thread()
-    
+        time.sleep(2)
+        demo.start_car_thread()
+        # demo.start_weather_thread()
+
     if args.demo_id == 2:
+        # demo.client_car.simPause(True)
+
+        demo.adv_config_path = './adv_configs/config_fp_2.json'
+        #remove ped from scene
+        demo.client_ped.simSetObjectPose(demo.ped_object_name, demo.no_ped_pose)
         demo.start_adv_thread()
+        
+        # demo.adv_config_path = './config_fn_4.json'
+        # demo.start_adv_thread()
 
     elif args.demo_id == 3:
-        demo.update_env_from_config(path='./results.json')
+        demo.client_car.simPause(False)
+
+        # demo.update_env_from_config(path='./adv_configs/config_fp.json')
+        # demo.update_env_from_config(path='./adv_configs/config_fp_2.json')
+        
+        # demo.update_env_from_config(path='./adv_configs/config_fn.json')
+        # demo.update_env_from_config(path='./adv_configs/config_fn_2.json')
+        demo.update_env_from_config(path='./adv_configs/config_fn_3.json')
+        
         demo.start_ped_detection_callback_thread()
+        demo.start_car_thread()
+
+    elif args.demo_id == 4:
+        ATTACK = True
+        demo.start_ped_detection_callback_thread()
+        time.sleep(3)
+        demo.start_ped_thread()
+        time.sleep(2)
+        demo.start_car_thread()
+        # demo.start_weather_thread()
 
     embed()
 
