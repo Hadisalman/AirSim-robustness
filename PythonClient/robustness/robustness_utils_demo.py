@@ -564,7 +564,7 @@ if __name__ == "__main__":
         demo.update_env_from_config(path='./adv_configs/config_fn_3.json')
         
         demo.start_ped_detection_callback_thread()
-        demo.start_car_thread()
+        # demo.start_car_thread()
 
     elif args.demo_id == 4:
         ATTACK = True
