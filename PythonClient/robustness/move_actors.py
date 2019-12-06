@@ -116,6 +116,7 @@ def car_dummy_move(demo_instance):
 
     # # apply brakes
     car_controls.brake = 1
+    car_controls.throttle = 0
     demo_instance.client_car.setCarControls(car_controls)
     print("Apply brakes")
     time.sleep(3)   

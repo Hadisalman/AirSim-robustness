@@ -37,9 +37,9 @@ class PedDetectionMetrics(object):
     def get(self):
         return {
             'Number of measurements': self.count,
-            'Accuracy': self.Accuracy,
-            'Precision': self.Precision,
-            'Recall': self.Recall,
+            'Accuracy': '{:.2f}'.format(self.Accuracy) if self.Accuracy != 'NA' else self.Accuracy,
+            'Precision': '{:.2f}'.format(self.Precision) if self.Precision != 'NA' else self.Precision,
+            'Recall': '{:.2f}'.format(self.Recall) if self.Recall != 'NA' else self.Recall,
             'False Positive':int(self.False_Positive.sum),
             'False Negative':int(self.False_Negative.sum),
             'True Positive':int(self.True_Positive.sum),
