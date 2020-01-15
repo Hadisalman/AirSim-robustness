@@ -520,7 +520,7 @@ if __name__ == "__main__":
                         '4 -> pixel pgd attack'
                         )
     parser.add_argument('--img-size', default=224, type=int, metavar='N',
-                        help='size of rgb image (assuming equal hight and width)')
+                        help='size of rgb image (assuming equal height and width)')
     parser.add_argument('--resolution-coord-descent', default=10, type=int,
                         help='resolution of coord descent 3D object adv attack')
     parser.add_argument('--num-iter', default=1, type=int,
