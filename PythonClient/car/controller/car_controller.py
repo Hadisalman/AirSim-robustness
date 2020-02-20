@@ -86,25 +86,27 @@ class CarController():
         self.ck = []
         self.ax = []
         self.ay = []
+        self.offx = 0
+        self.offy = 0
                 
-        self.k = 3.0                        # Path control gain
+        self.k = 5.0                        # Path control gain
         self.Kp = 1.0                       # Speed proportional gain
         self.dt = 1.0                       # [s] time step
-        self.wheel_base = 5.0               # [m] Wheel base of vehicle
+        self.wheel_base = 4.0               # [m] Wheel base of vehicle
         self.max_steer = np.radians(60.0)   # [rad] max steering angle
         self.target_speed = 1.0             # [m/s] Unused for now
 
-        self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 57.0, 57.0, 57.0, 57.0, 57.0, 57.0,  57.0,  57.0,  57.0,  57.0,  57.0,  57.0,  55.0,  50.0,  40.0,  25.0,   0.0, -40.0, -80.0, -150.0, -170.0, -180.0, -185.0, -188.0, -190.0, -192.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -190.0, -185.0, -180.0, -90.0, -20.0, 0.0]
-        self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  2.0,  5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 115.0, 117.0, 119.0, 121.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  124.0,  121.0,  111.0,   91.0,   41.0,   10.0,    5.0,    0.0,    0.0,    0.0,    0.0,   0.0,   0.0, 0.0]
+        #self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 55.0, 55.0, 55.0, 55.0, 55.0, 55.0,  55.0,  55.0,  55.0,  55.0,  55.0,  55.0,  53.0,  50.0,  40.0,  25.0,   0.0, -40.0, -80.0, -150.0, -170.0, -180.0, -185.0, -188.0, -190.0, -192.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -190.0, -185.0, -180.0, -90.0, -20.0, 0.0]
+        #self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  2.0,  5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 115.0, 117.0, 119.0, 121.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  124.0,  121.0,  111.0,   91.0,   41.0,   10.0,    5.0,    0.0,    0.0,    0.0,    0.0,   0.0,   0.0, 0.0]
 
-        #self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 57.0, 57.0, 57.0, 57.0, 57.0, 57.0,  57.0,  57.0,  57.0,  57.0,  57.0,  57.0,  55.0,  50.0,  40.0,  25.0,   0.0, -50.0, -61.0,  -63.0,  -65.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,   -67.0,  -60.0,  -52.0,  -42.0, -20.0, 0.0]
-        #self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  2.0,  5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 115.0, 117.0, 119.0, 121.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  126.0,  126.0,  124.0,  121.0,  116.0,   96.0,   46.0,   11.0,    9.0,    7.0,    5.0,    0.0,    0.0,    0.0,    0.0,   0.0, 0.0]
+        self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 57.0, 57.0, 57.0, 57.0, 57.0, 57.0,  57.0,  57.0,  57.0,  57.0,  57.0,  56.0,  53.0,  50.0,  40.0,  25.0,   0.0, -50.0, -61.0,  -63.0,  -65.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,   -67.0,  -60.0,  -52.0,  -42.0, -20.0, 0.0]
+        self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  2.0,  5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 115.0, 117.0, 119.0, 121.0, 124.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  126.0,  126.0,  124.0,  121.0,  116.0,   96.0,   46.0,   11.0,    9.0,    7.0,    5.0,    0.0,    0.0,    0.0,    0.0,   0.0, 0.0]
 
         self.client = None
         self.controls = airsim.CarControls()
         self.state = State()
 
-        self.plot = True
+        self.plot = False
 
     def setupClient(self):
         self.client = airsim.CarClient()
@@ -119,8 +121,9 @@ class CarController():
 
     def updateState(self):
         car_state = self.client.getCarState()
-        self.state.x = car_state.kinematics_estimated.position.x_val
-        self.state.y = car_state.kinematics_estimated.position.y_val
+        self.state.x = car_state.kinematics_estimated.position.x_val - self.offx
+        self.state.y = car_state.kinematics_estimated.position.y_val - self.offy
+
         self.state.v = np.linalg.norm(car_state.kinematics_estimated.linear_velocity.to_numpy_array())
         p, r, ye = airsim.to_eularian_angles(car_state.kinematics_estimated.orientation)
         self.state.yaw = ye
@@ -221,10 +224,13 @@ def main():
     
     if path == "small":
         filename = "NH_path_small"
-        intersection_idx = [40, 160, 286, 410]
+        #intersection_idx = [35, 160, 286, 410]
+        intersection_idx = [40, 160, 280, 410]
+        intersection_should_stop = [1, 0, 0, 1]
     elif path == "large":
         filename = "NH_path_large"
         intersection_idx = [40, 160, 414, 540]
+        intersection_should_stop = [1, 0, 0, 1]
     
     #car.fitSpline()
     #car.saveSpline(filename)
@@ -233,8 +239,15 @@ def main():
     target_speed = 1.0  # [m/s]
     #max_simulation_time = 1000.0
 
+    car_pose = car.client.simGetObjectPose('PlayerState_0')
+    #self.state.x = car_state.kinematics_estimated.position.x_val
+    #self.state.y = car_state.kinematics_estimated.position.y_val
+
+    car.offx = car_pose.position.x_val + 72.0
+    car.offy = car_pose.position.y_val - 15.0
+
     # Initial state
-    car.state = State(x=0.0, y=0.0, yaw=np.radians(0.0), v=0.0)
+    car.state = State(x=car.offx, y=car.offy, yaw=np.radians(0.0), v=0.0)
 
     last_idx = len(car.cx) - 1
 
@@ -245,26 +258,66 @@ def main():
 
     target_idx, _ = car.calc_target_index(car.state)
 
-    const_throttle = 0.7
+    const_throttle = 0.8
+    brake = 0.0
 
     signal.signal(signal.SIGINT, car.stop_car)
 
     print("Done.")
     print("Running...")
+
+    prev_idx = 0
+    slow_start_idx = 0
+    slow_down = False
+
+    intersection = False
     while True:
         accel = car.pid_control(target_speed, car.state.v)
         steering, target_idx = car.stanley_control(car.state, target_idx)
 
-        car.sendCommands(const_throttle, steering, 0.0)        
-        car.updateState()        
-
-        #print(f"{car.state.x}, {car.state.y}")
-        #print(target_idx)
-
-        # Stop at intersections (harcoded spline idx)
+        print(target_idx)
         if target_idx in intersection_idx:
-            car.sendCommands(0.0, steering, 1.0)
-            time.sleep(3.0)
+            print("INTERSECTION")
+            intersection = True
+            int_idx = np.where(intersection_idx == target_idx)[0][0]
+            should_stop = intersection_should_stop[int_idx]
+            print(intersection_should_stop)
+            print(should_stop)
+
+        if intersection:    
+            print(should_stop)
+            if should_stop:                             # Stop the car
+                car.sendCommands(0.0, steering, 1.0)
+                time.sleep(3.0)
+                should_stop = False
+                intersection = False
+                const_throttle = 0.7
+        
+            else:                                           # Slow down and navigate intersection
+                slow_start_idx = intersection_idx[int_idx]
+                if target_idx < slow_start_idx + 30:
+                    print(f"{target_idx}, {prev_idx}")
+                    if target_idx < slow_start_idx + 15 and target_idx > prev_idx:
+                        print("BRAKE")
+                        brake = 0.8
+                        const_throttle = 0.0
+                    else:
+                        print("SLOW")
+                        const_throttle = 0.4
+                        brake = 0.0
+                    
+                    prev_idx = target_idx
+            
+                else:
+                    print("HOOOO")
+                    slow_start_idx = 0
+                    const_throttle = 0.7
+                    brake = 0.0
+                    intersection = False
+
+        print(const_throttle)
+        car.sendCommands(const_throttle, steering, brake)        
+        car.updateState()        
 
         # Restart path tracking when close to end
         if target_idx > last_idx - 5:
