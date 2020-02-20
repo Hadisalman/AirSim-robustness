@@ -234,7 +234,7 @@ def main():
     
     #car.fitSpline()
     #car.saveSpline(filename)
-    car.readSpline(filename)
+    git addcar.readSpline(filename)
     
     target_speed = 1.0  # [m/s]
     #max_simulation_time = 1000.0
@@ -275,17 +275,12 @@ def main():
         accel = car.pid_control(target_speed, car.state.v)
         steering, target_idx = car.stanley_control(car.state, target_idx)
 
-        print(target_idx)
         if target_idx in intersection_idx:
-            print("INTERSECTION")
             intersection = True
             int_idx = np.where(intersection_idx == target_idx)[0][0]
             should_stop = intersection_should_stop[int_idx]
-            print(intersection_should_stop)
-            print(should_stop)
 
-        if intersection:    
-            print(should_stop)
+        if intersection:   
             if should_stop:                             # Stop the car
                 car.sendCommands(0.0, steering, 1.0)
                 time.sleep(3.0)
@@ -296,26 +291,21 @@ def main():
             else:                                           # Slow down and navigate intersection
                 slow_start_idx = intersection_idx[int_idx]
                 if target_idx < slow_start_idx + 30:
-                    print(f"{target_idx}, {prev_idx}")
                     if target_idx < slow_start_idx + 15 and target_idx > prev_idx:
-                        print("BRAKE")
                         brake = 0.8
                         const_throttle = 0.0
                     else:
-                        print("SLOW")
                         const_throttle = 0.4
                         brake = 0.0
                     
                     prev_idx = target_idx
             
                 else:
-                    print("HOOOO")
                     slow_start_idx = 0
                     const_throttle = 0.7
                     brake = 0.0
                     intersection = False
 
-        print(const_throttle)
         car.sendCommands(const_throttle, steering, brake)        
         car.updateState()        
 
