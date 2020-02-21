@@ -99,14 +99,14 @@ class CarController():
         #self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 55.0, 55.0, 55.0, 55.0, 55.0, 55.0,  55.0,  55.0,  55.0,  55.0,  55.0,  55.0,  53.0,  50.0,  40.0,  25.0,   0.0, -40.0, -80.0, -150.0, -170.0, -180.0, -185.0, -188.0, -190.0, -192.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -190.0, -185.0, -180.0, -90.0, -20.0, 0.0]
         #self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  2.0,  5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 115.0, 117.0, 119.0, 121.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  124.0,  121.0,  111.0,   91.0,   41.0,   10.0,    5.0,    0.0,    0.0,    0.0,    0.0,   0.0,   0.0, 0.0]
 
-        self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 57.0, 57.0, 57.0, 57.0, 57.0, 57.0,  57.0,  57.0,  57.0,  57.0,  57.0,  56.0,  53.0,  50.0,  40.0,  25.0,   0.0, -50.0, -61.0,  -63.0,  -65.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,   -67.0,  -60.0,  -52.0,  -42.0, -20.0, 0.0]
-        self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  2.0,  5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 115.0, 117.0, 119.0, 121.0, 124.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  126.0,  126.0,  124.0,  121.0,  116.0,   96.0,   46.0,   11.0,    9.0,    7.0,    5.0,    0.0,    0.0,    0.0,    0.0,   0.0, 0.0]
+        self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 57.0, 57.0, 57.0, 57.0, 57.0, 57.0,  57.0,  57.0,  57.0,  57.0,  57.0, 57.0, 55.0,  50.0, 40.0,  25.0,   0.0, -50.0, -61.0,  -63.0,  -65.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,   -67.0,  -60.0,  -52.0,  -42.0, -20.0, 0.0]
+        self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  2.0,  5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 115.0, 117.0, 119.0, 121.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  126.0,  126.0,  124.0,  121.0,  116.0,   96.0,   46.0,   11.0,    9.0,    7.0,    5.0,    0.0,    0.0,    0.0,    0.0,   0.0, 0.0]
 
         self.client = None
         self.controls = airsim.CarControls()
         self.state = State()
 
-        self.plot = False
+        self.plot = True
 
     def setupClient(self):
         self.client = airsim.CarClient()
@@ -157,7 +157,7 @@ class CarController():
         return self.Kp * (target - current)
 
 
-    def stanley_control(self, state, last_target_idx):
+    def stanley_control(self, state):
         """
         Stanley steering control.
 
@@ -170,8 +170,8 @@ class CarController():
         """
         current_target_idx, error_front_axle = self.calc_target_index(state)
 
-        if last_target_idx >= current_target_idx:
-            current_target_idx = last_target_idx
+        #if last_target_idx >= current_target_idx:
+        #    current_target_idx = last_target_idx
 
         # theta_e corrects the heading error
         theta_e = normalize_angle(self.cyaw[current_target_idx] - state.yaw)
@@ -200,6 +200,8 @@ class CarController():
         dy = [fy - icy for icy in self.cy]
         d = np.hypot(dx, dy)
         target_idx = np.argmin(d)
+
+        print(target_idx)
 
         # Project RMS error onto front axle vector
         front_axle_vec = [-np.cos(state.yaw + np.pi / 2),
@@ -232,9 +234,9 @@ def main():
         intersection_idx = [40, 160, 414, 540]
         intersection_should_stop = [1, 0, 0, 1]
     
-    #car.fitSpline()
-    #car.saveSpline(filename)
-    git addcar.readSpline(filename)
+    car.fitSpline()
+    car.saveSpline(filename)
+    #car.readSpline(filename)
     
     target_speed = 1.0  # [m/s]
     #max_simulation_time = 1000.0
@@ -251,12 +253,10 @@ def main():
 
     last_idx = len(car.cx) - 1
 
-    x = [car.state.x]
-    y = [car.state.y]
-    yaw = [car.state.yaw]
-    v = [car.state.v]
-
-    target_idx, _ = car.calc_target_index(car.state)
+    x = []
+    y = []
+    yaw = []
+    v = []
 
     const_throttle = 0.8
     brake = 0.0
@@ -273,7 +273,9 @@ def main():
     intersection = False
     while True:
         accel = car.pid_control(target_speed, car.state.v)
-        steering, target_idx = car.stanley_control(car.state, target_idx)
+        steering, target_idx = car.stanley_control(car.state)
+
+        print(target_idx)
 
         if target_idx in intersection_idx:
             intersection = True
@@ -292,7 +294,7 @@ def main():
                 slow_start_idx = intersection_idx[int_idx]
                 if target_idx < slow_start_idx + 30:
                     if target_idx < slow_start_idx + 15 and target_idx > prev_idx:
-                        brake = 0.8
+                        brake = 0.4
                         const_throttle = 0.0
                     else:
                         const_throttle = 0.4
