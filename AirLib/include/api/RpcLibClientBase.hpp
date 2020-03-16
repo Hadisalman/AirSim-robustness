@@ -75,6 +75,8 @@ public:
 
     msr::airlib::GeoPoint getHomeGeoPoint(const std::string& vehicle_name = "") const;
 
+    void simSetDistortionParam(std::string& scenecap_actor_name, std::string& param_name, float value);
+
     // sensor APIs
     msr::airlib::LidarData getLidarData(const std::string& lidar_name = "", const std::string& vehicle_name = "") const;
     msr::airlib::ImuBase::Output getImuData(const std::string& imu_name = "", const std::string& vehicle_name = "") const;

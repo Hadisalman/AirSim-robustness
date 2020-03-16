@@ -382,6 +382,11 @@ void RpcLibClientBase::cancelLastTask(const std::string& vehicle_name)
     pimpl_->client.call("cancelLastTask", vehicle_name);
 }
 
+void RpcLibClientBase::simSetDistortionParam(std::string& scenecap_actor_name, std::string& param_name, float value)
+{
+    pimpl_->client.call("simSetDistortionParam", scenecap_actor_name, param_name, value);
+}
+
 //return value of last task. It should be true if task completed without
 //cancellation or timeout
 RpcLibClientBase* RpcLibClientBase::waitOnLastTask(bool* task_result, float timeout_sec)

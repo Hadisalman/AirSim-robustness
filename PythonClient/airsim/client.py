@@ -165,6 +165,9 @@ class VehicleClient:
 
     def simPrintLogMessage(self, message, message_param = "", severity = 0):
         return self.client.call('simPrintLogMessage', message, message_param, severity)
+        
+    def simSetDistortionParam(self, scenecap_name, param_name, value):
+        self.client.call('simSetDistortionParam', scenecap_name, param_name, value)
 
     def simGetCameraInfo(self, camera_name, vehicle_name = ''):
         # TODO: below str() conversion is only needed for legacy reason and should be removed in future
