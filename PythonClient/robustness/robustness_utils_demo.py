@@ -6,7 +6,6 @@ import threading
 import time
 
 import airsim
-import cv2
 import numpy as np
 import PIL
 import torch
@@ -14,9 +13,10 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 from IPython import embed
 
+import cv2
 from attacks import PGD, NormalizeLayer
-from utils import PedDetectionMetrics
 from move_actors import car_dummy_move, ped_dummy_move
+from utils import PedDetectionMetrics
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -115,9 +115,9 @@ class Demo():
                                             ])
         self.criterion = torch.nn.CrossEntropyLoss().cuda()
         self.model.eval()
-        test_image_no_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_new//no_ped//00000.png')
-        test_image_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_new//ped//00000.png')
-        self._loaded_model_unit_test(test_image_ped, test_image_no_ped)
+        # test_image_no_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_new//no_ped//00000.png')
+        # test_image_ped = os.path.expanduser('~//Desktop//datasets//pedestrian_recognition_new//ped//00000.png')
+        # self._loaded_model_unit_test(test_image_ped, test_image_no_ped)
         self.detection_metrics = PedDetectionMetrics()
         #########################
 
