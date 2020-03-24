@@ -49,22 +49,14 @@ RUN	conda create -n airsim python=3.7 && \
 	echo "source activate airsim" >> ~/.bashrc && \
 	conda install -n airsim pytorch torchvision cudatoolkit=10.1 -c pytorch
 
-RUN wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-alpha/RobustnessNeighborhood.zip && \
-	mkdir -p /home/$USER/Documents/AirSim && \
-	unzip RobustnessNeighborhood.zip && \
+RUN wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-alpha/RobustnessNeighborhood_opengl.zip && \
+	unzip RobustnessNeighborhood_opengl.zip && \
 	git clone https://github.com/Hadisalman/AirSim.git
-	# mv RobustnessNeighborhood/ ../ && \
-	# cd ../
 
 RUN cd AirSim && git checkout 4.24 && cd ../ && \
 	pip install AirSim/PythonClient
 
 RUN pip install matplotlib "pillow<7" IPython opencv-python
 
-RUN cp AirSim/PythonClient/robustness/settings.json ~/Documents/AirSim/
-
-RUN wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-alpha/RobustnessNeighborhood2.zip && \
-	unzip RobustnessNeighborhood2.zip
-
-RUN wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-alpha/RobustnessNeighborhood_opengl.zip && \
-	unzip RobustnessNeighborhood_opengl.zip
+RUN mkdir -p /home/$USER/Documents/AirSim && \
+	cp AirSim/PythonClient/robustness/settings.json ~/Documents/AirSim/
