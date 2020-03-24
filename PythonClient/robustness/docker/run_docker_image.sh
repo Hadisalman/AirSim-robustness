@@ -49,7 +49,13 @@ fi
 #     UNREAL_BINARY_COMMAND="bash /home/airsim_user/AirSim_Qualification/AirSimExe.sh -windowed -opengl"
 # fi
 
-UNREAL_BINARY_COMMAND="bash /home/airsim_user/Robustness_NH/AirSimNH.sh -windowed"
+# vulkan (use when vulkan in headless mode is supported.)
+# UNREAL_BINARY_COMMAND="bash /home/airsim_user/Robustness_NH/AirSimNH.sh -windowed"
+# UNREAL_BINARY_COMMAND="bash /home/airsim_user/RobustnessNeighborhood/AirSimNH.sh -windowed"
+# UNREAL_BINARY_COMMAND="DSIPLAY= bash /home/airsim_user/RobustnessNeighborhood2/AirSimNH.sh -windowed"
+
+# opengl
+UNREAL_BINARY_COMMAND="bash /home/airsim_user/RobustnessNeighborhood_opengl/AirSimNH.sh -windowed -opengl"
 
 # eleminate terminal output and run airsim process in the background
 # UNREAL_BINARY_COMMAND="bash /home/airsim_user/AirSim_Training/AirSimExe.sh -windowed -opengl &>/dev/null &"
@@ -60,8 +66,10 @@ UNREAL_BINARY_COMMAND="bash /home/airsim_user/Robustness_NH/AirSimNH.sh -windowe
 # now, let's check if we need to run in headless mode or not
 # set SDL_VIDEODRIVER_VALUE to '' if windowed mode, 'offscreen' if headless mode
 SDL_VIDEODRIVER_VALUE='';
+DISPLAY_ENV=$DISPLAY
 if [[ $3 = "headless" ]]; then 
     SDL_VIDEODRIVER_VALUE='offscreen';
+    DISPLAY_ENV=''
 fi
 
 # now, set the environment varible SDL_VIDEODRIVER to SDL_VIDEODRIVER_VALUE
@@ -70,7 +78,7 @@ nvidia-docker run -it \
     -e SDL_VIDEODRIVER=$SDL_VIDEODRIVER_VALUE \
     -e SDL_HINT_CUDA_DEVICE='0' \
     --net=host \
-    --env="DISPLAY=$DISPLAY" \
+    --env="DISPLAY=$DISPLAY_ENV" \
     --env="QT_X11_NO_MITSHM=1" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
     --env="XAUTHORITY=$XAUTH" \

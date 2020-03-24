@@ -1,4 +1,5 @@
 # ARG BASE_IMAGE=pytorch/pytorch:1.4-cuda10.1-cudnn7-devel
+# ARG BASE_IMAGE=nvidia/cudagl:10.0-devel-ubuntu18.04
 ARG BASE_IMAGE=nvidia/vulkan:1.1.121-cuda-10.1-alpha
 FROM $BASE_IMAGE
 
@@ -64,3 +65,6 @@ RUN cp AirSim/PythonClient/robustness/settings.json ~/Documents/AirSim/
 
 RUN wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-alpha/RobustnessNeighborhood2.zip && \
 	unzip RobustnessNeighborhood2.zip
+
+RUN wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-alpha/RobustnessNeighborhood_opengl.zip && \
+	unzip RobustnessNeighborhood_opengl.zip
