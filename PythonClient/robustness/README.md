@@ -7,12 +7,7 @@ The following should get you all set to run the RobustnessNeighborhood environme
 #### Setup
 
 We provide [Linux] binaries only. The following downloads the binary for the RobustnessNeighborhood, and installs the python api used to play with the environment.
-- Download and extract the binary (works with vulkan):
-    ```
-    wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-alpha/RobustnessNeighborhood.zip && \
-    unzip RobustnessNeighborhood.zip
-    ```
-- Alternatively, you can download and extract a binary that works with opengl (this is slower though, but supports running headless), and note that you need to add `-opengl` flag when you run this binary:
+- Download and extract the binary (works with both vulkan and opengl):
     ```
     wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-alpha/RobustnessNeighborhood_opengl.zip && \
     unzip RobustnessNeighborhood_opengl.zip
