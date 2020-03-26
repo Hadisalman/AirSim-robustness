@@ -18,7 +18,7 @@ We provide [Linux] binaries only. The following downloads the binary for the Rob
     conda create -n airsim python=3.7 && \
     conda activate airsim && \
     git clone https://github.com/Hadisalman/AirSim.git && \
-    pip install Airsim/PythonClient
+    pip install AirSim/PythonClient
     conda install -n airsim pytorch torchvision cudatoolkit=10.1 -c pytorch
     pip install matplotlib "pillow<7" IPython opencv-python
     ``` 
