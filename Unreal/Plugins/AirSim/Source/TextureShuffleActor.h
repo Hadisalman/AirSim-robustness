@@ -7,6 +7,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "TextureShuffleActor.generated.h"
 
+class UAsyncTaskDownloadImage;
 
 UCLASS()
 class AIRSIM_API ATextureShuffleActor : public AStaticMeshActor
@@ -26,9 +27,22 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	void SwapTexture(int tex_id = 0, int component_id = 0, int material_id = 0);
 
+	UFUNCTION(BlueprintCallable)
+	void SetTextureFromUrl(const FString& url, int material_id = 0);
+
 private:
+
+	UAsyncTaskDownloadImage* DownloadImageTask = nullptr;
+
 	bool MaterialCacheInitialized = false;
 	int NumComponents = -1;
+	int DownloadingMaterialID = -1;
+
+	bool InitMaterialCache(int component_id);
+	void InitCachedMaterial(int component_id, int material_id);
+
+	UFUNCTION()
+	void OnTextureDownloaded(UTexture2DDynamic *downloaded);
 
 	UPROPERTY()
 	TArray<UMaterialInstanceDynamic*> DynamicMaterialInstances;
