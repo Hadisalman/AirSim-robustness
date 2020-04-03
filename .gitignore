@@ -377,3 +377,5 @@ ros/src/CMakeLists.txt
 # docs
 docs/README.md
 build_docs/
+# Apple
+.DS_Store/

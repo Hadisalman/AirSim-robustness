@@ -6,11 +6,18 @@ The following should get you all set to run the RobustnessNeighborhood environme
 
 #### Setup
 
-We provide [Linux] binaries only. The following downloads the binary for the RobustnessNeighborhood, and installs the python api used to play with the environment.
-- Download and extract the binary (works with both vulkan and opengl):
+We provide [Linux] and [Mac] binaries. The following downloads the binary for the RobustnessNeighborhood, and installs the python api used to play with the environment.
+- Download and extract the binary (works with both vulkan and opengl on Linux, uses Metal on macOS):
+    Linux:
     ```
     wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-alpha/RobustnessNeighborhood_opengl.zip && \
     unzip RobustnessNeighborhood_opengl.zip
+    ```
+
+    macOS:
+    ```
+    wget -c https://github.com/Hadisalman/AirSim/releases/download/v0.1-mac/RobustnessNeighborhood.zip && \
+    unzip RobustnessNeighborhood.zip
     ```
 
 - Create a conda environment and install our Python API and its dependecies dependencies:
@@ -29,11 +36,12 @@ We provide [Linux] binaries only. The following downloads the binary for the Rob
     ```
 
 #### Running
-- Open a Linux terminal and enter the following command:
+- Open a terminal and enter the following command:
     ```
     cd RobustnessNeighborhood/
     ./AirSimNH.sh -windowed
     ```
+
 - Running headless (with rendering of images enabled):
     ```
     DISPLAY= ./AirSimNH.sh
