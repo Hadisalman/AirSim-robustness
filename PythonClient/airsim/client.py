@@ -83,6 +83,21 @@ class VehicleClient:
     def simSetWeatherParameter(self, param, val):
         return self.client.call('simSetWeatherParameter', param, val)
 
+    #pedestrians
+    
+    def simPedestrianIsMoving(self, pedestrian_name):
+        return self.client.call('simPedestrianIsMoving', pedestrian_name)
+        
+    def simGetPedestrianSpeed(self, pedestrian_name):
+        return self.client.call('simGetPedestrianSpeed', pedestrian_name)
+        
+    def simStopPedestrian(self, pedestrian_name):
+        return self.client.call('simStopPedestrian', pedestrian_name)
+        
+    def simMovePedestrianToGoal(self, pedestrian_name, goal_x, goal_y, goal_z, speed):
+        return self.client.call('simMovePedestrianToGoal', pedestrian_name, goal_x, goal_y, goal_z, speed)
+
+    
     # camera control
     # simGetImage returns compressed png in array of bytes
     # image_type uses one of the ImageType members

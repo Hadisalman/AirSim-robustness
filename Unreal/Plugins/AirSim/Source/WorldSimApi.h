@@ -34,6 +34,10 @@ public:
     virtual std::vector<std::string> listSceneObjects(const std::string& name_regex) const override;
     virtual Pose getObjectPose(const std::string& object_name) const override;
     virtual bool setObjectPose(const std::string& object_name, const Pose& pose, bool teleport) override;
+    virtual bool pedestrianIsMoving(std::string& pedestrian_name) override;
+    virtual int getPedestrianSpeed(std::string& pedestrian_name) override;
+    virtual bool stopPedestrian(std::string& pedestrian_name) override;
+    virtual bool movePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed) override;
 
     //----------- APIs to control ACharacter in scene ----------/
     virtual void charSetFaceExpression(const std::string& expression_name, float value, const std::string& character_name) override;

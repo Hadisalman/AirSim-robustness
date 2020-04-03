@@ -2,6 +2,7 @@
 #include "AirBlueprintLib.h"
 #include "common/common_utils/Utils.hpp"
 #include "Weather/WeatherLib.h"
+#include "BaseNewerPedestrian.h"
 
 WorldSimApi::WorldSimApi(ASimModeBase* simmode)
     : simmode_(simmode)
@@ -72,6 +73,57 @@ std::vector<std::string> WorldSimApi::listSceneObjects(const std::string& name_r
         result = UAirBlueprintLib::ListMatchingActors(simmode_, name_regex);
     }, true);
     return result;
+}
+
+bool WorldSimApi::pedestrianIsMoving(std::string& pedestrian_name)
+{
+    bool moving = false;
+    UAirBlueprintLib::RunCommandOnGameThread([this, &pedestrian_name, &moving]() {
+        ABaseNewerPedestrian* pedestrian = UAirBlueprintLib::FindActor<ABaseNewerPedestrian>(simmode_, FString(pedestrian_name.c_str()));
+        if (pedestrian != nullptr)
+            moving = pedestrian->GetIsMoving();
+    }, true);
+    return moving;
+}
+
+int WorldSimApi::getPedestrianSpeed(std::string& pedestrian_name)
+{
+    int speed = -1;
+    UAirBlueprintLib::RunCommandOnGameThread([this, &pedestrian_name, &speed]() {
+        ABaseNewerPedestrian* pedestrian = UAirBlueprintLib::FindActor<ABaseNewerPedestrian>(simmode_, FString(pedestrian_name.c_str()));
+        if (pedestrian != nullptr)
+            speed = pedestrian->GetSpeed();
+    }, true);
+    return speed;
+}
+
+bool WorldSimApi::stopPedestrian(std::string& pedestrian_name)
+{
+    bool found = false;
+    UAirBlueprintLib::RunCommandOnGameThread([this, &pedestrian_name, &found]() {
+        ABaseNewerPedestrian* pedestrian = UAirBlueprintLib::FindActor<ABaseNewerPedestrian>(simmode_, FString(pedestrian_name.c_str()));
+        if (pedestrian != nullptr)
+        {
+            found = true;
+            pedestrian->stop();
+        }
+    }, true);
+    return found;
+}
+
+bool WorldSimApi::movePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed)
+{
+    FVector target(goal_x, goal_y, goal_z);
+    bool found = false;
+    UAirBlueprintLib::RunCommandOnGameThread([this, &found, &pedestrian_name, &target, speed]() {
+        ABaseNewerPedestrian* pedestrian = UAirBlueprintLib::FindActor<ABaseNewerPedestrian>(simmode_, FString(pedestrian_name.c_str()));
+        if (pedestrian != nullptr)
+        {
+            found = true;
+            pedestrian->move(target, speed);
+        }
+    }, true);
+    return found;
 }
 
 
