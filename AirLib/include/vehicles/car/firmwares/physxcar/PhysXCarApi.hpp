@@ -5,7 +5,7 @@
 #define msr_airlib_PhysXCarController_hpp
 
 #include "vehicles/car/api/CarApiBase.hpp"
-
+#include "CarPidController.hpp"
 namespace msr { namespace airlib {
 
 class PhysXCarApi : public CarApiBase {
@@ -14,7 +14,9 @@ public:
                 const Kinematics::State& state, const Environment& environment, const msr::airlib::GeoPoint& home_geopoint)
     : CarApiBase(vehicle_setting, sensor_factory, state, environment),
       home_geopoint_(home_geopoint), state_(state)
-    {}
+    {
+        pid_.reset(new CarPidController<float>());
+    }
 
     ~PhysXCarApi()
     {}
@@ -22,6 +24,7 @@ public:
 protected:
     virtual void resetImplementation() override
     {
+        pid_->reset();
         CarApiBase::resetImplementation();
     }
 
@@ -64,6 +67,13 @@ public:
 
 
 public:
+    virtual void setCarSpeed(float speed) override
+    {
+        pid_->setGoal(speed);
+        target_speed_ = speed;
+        speed_control_enabled_ = true;
+    }
+
     virtual void setCarControls(const CarControls& controls) override
     {
         last_controls_ = controls;  
@@ -79,8 +89,13 @@ public:
         return last_car_state_;
     }
 
-    virtual const CarControls& getCarControls() const override
+    virtual const CarControls& getCarControls() override
     {
+        if (!speed_control_enabled_)
+            return last_controls_;
+        else
+            updateCarControls();            
+
         return last_controls_;
     }
 
@@ -90,7 +105,28 @@ private:
     CarControls last_controls_;
     const Kinematics::State& state_;
     CarState last_car_state_;
+    std::unique_ptr<CarPidController<float>> pid_;
+    bool speed_control_enabled_;
+    float target_speed_;
 
+    void updateCarControls()
+    {
+        float curr_speed = last_car_state_.speed;
+        pid_->setMeasured(curr_speed);
+
+        pid_->update();
+
+        double throttleComp = pid_->getOutput();
+
+        if (throttleComp < 0.0) {
+            last_controls_.throttle = 0.0;
+            last_controls_.brake = -1 * throttleComp;
+        }
+        else {
+            last_controls_.throttle = throttleComp;
+            last_controls_.brake = 0;
+        }
+    }
 };
 
 }}

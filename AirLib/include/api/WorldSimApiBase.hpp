@@ -58,6 +58,11 @@ public:
 
 	virtual std::unique_ptr<std::vector<std::string>> swapTextures(const std::string& tag, int tex_id = 0, int component_id = 0, int material_id = 0) = 0;
     virtual vector<MeshPositionVertexBuffersResponse> getMeshPositionVertexBuffers() const = 0;
+
+    virtual bool pedestrianIsMoving(std::string& pedestrian_name) = 0;
+    virtual int getPedestrianSpeed(std::string& pedestrian_name) = 0;
+    virtual bool stopPedestrian(std::string& pedestrian_name) = 0;
+    virtual bool movePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed) = 0;
 };
 
 

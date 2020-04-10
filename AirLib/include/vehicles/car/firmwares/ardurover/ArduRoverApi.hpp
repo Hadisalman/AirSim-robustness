@@ -114,9 +114,14 @@ public:
         return last_car_state_;
     }
 
-    virtual const CarControls& getCarControls() const override
+    virtual const CarControls& getCarControls() override
     {
         return last_controls_;
+    }
+
+    virtual void setCarSpeed(float speed) override
+    {
+        unused(speed);
     }
 
 protected:

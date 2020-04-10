@@ -21,6 +21,7 @@ public:
     void setCarControls(const CarApiBase::CarControls& controls, const std::string& vehicle_name = "");
     CarApiBase::CarState getCarState(const std::string& vehicle_name = "");
 	CarApiBase::CarControls getCarControls(const std::string& vehicle_name = "");
+    void setCarSpeed(float speed, const std::string& vehicle_name = "");
     virtual ~CarRpcLibClient();    //required for pimpl
 };
 
