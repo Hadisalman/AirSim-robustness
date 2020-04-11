@@ -78,7 +78,7 @@ We provide [Linux] and [Mac] binaries. The following downloads the binary for th
 	python3 build_docker_image.py \
 		--dockerfile Dockerfile \
 		--base_image nvidia/vulkan:1.1.121-cuda-10.1-alpha \
-		-- target_image airsim_robustness:nvidia/vulkan:1.1.121-cuda-10.1-alpha
+		--target_image airsim_robustness:vulkan-1.1.121-cuda-10.1-alpha
 	```
 - Running the docker image:
 	See [docker/run_docker_image.sh](docker/run_docker_image.sh) to run the docker image:   
