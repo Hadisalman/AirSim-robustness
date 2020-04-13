@@ -346,6 +346,26 @@ std::vector<std::string> RpcLibClientBase::simSwapTextures(const std::string& ta
 	return pimpl_->client.call("simSwapTextures", tags, tex_id, component_id, material_id).as<vector<string>>();
 }
 
+bool simPedestrianIsMoving(std::string& pedestrian_name)
+{
+    return pimpl_->client.call("simPedestrianIsMoving").as<bool>();
+}
+
+int simGetPedestrianSpeed(std::string& pedestrian_name)
+{
+    return pimpl_->client.call("simGetPedestrianSpeed").as<int>();
+}
+
+bool simStopPedestrian(std::string& pedestrian_name)
+{
+    return pimpl_->client.call("simStopPedestrian").as<bool>();
+}
+
+bool simMovePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed)
+{
+    return pimpl_->client.call("simMovePedestrianToGoal").as<bool>();
+}
+
 msr::airlib::Pose RpcLibClientBase::simGetObjectPose(const std::string& object_name) const
 {
     return pimpl_->client.call("simGetObjectPose", object_name).as<RpcLibAdapatorsBase::Pose>().to();

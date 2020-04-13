@@ -49,6 +49,15 @@ public:
     void simSetWeatherParameter(WorldSimApiBase::WeatherParameter param, float val);
 
     vector<string> simListSceneObjects(const string& name_regex = string(".*")) const;
+
+    bool simPedestrianIsMoving(std::string& pedestrian_name);
+
+    int simGetPedestrianSpeed(std::string& pedestrian_name);
+
+    bool simStopPedestrian(std::string& pedestrian_name);
+
+    bool simMovePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed);
+
     Pose simGetObjectPose(const std::string& object_name) const;
     bool simSetObjectPose(const std::string& object_name, const Pose& pose, bool teleport = true);
 

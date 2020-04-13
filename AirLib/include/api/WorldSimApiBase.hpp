@@ -53,6 +53,12 @@ public:
     virtual void simPlotTransformsWithNames(const vector<Pose>& poses, const vector<std::string>& names, float tf_scale, float tf_thickness, float text_scale, const vector<float>& text_color_rgba, float duration) = 0;
 
     virtual std::vector<std::string> listSceneObjects(const std::string& name_regex) const = 0;
+
+    virtual bool pedestrianIsMoving(std::string& pedestrian_name) = 0;
+    virtual int getPedestrianSpeed(std::string& pedestrian_name) = 0;
+    virtual bool stopPedestrian(std::string& pedestrian_name) = 0;
+    virtual bool movePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed) = 0;
+
     virtual Pose getObjectPose(const std::string& object_name) const = 0;
     virtual bool setObjectPose(const std::string& object_name, const Pose& pose, bool teleport) = 0;
 
