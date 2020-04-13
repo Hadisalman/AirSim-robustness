@@ -214,6 +214,19 @@ RpcLibServerBase::RpcLibServerBase(ApiProvider* api_provider, const std::string&
         return getWorldSimApi()->listSceneObjects(name_regex);
     });
 
+    pimpl_->server.bind("simPedestrianIsMoving", [&](std::string& pedestrian_name) {
+        return getWorldSimApi()->pedestrianIsMoving(pedestrian_name);
+    });
+    pimpl_->server.bind("simGetPedestrianSpeed", [&](std::string& pedestrian_name) {
+        return getWorldSimApi()->getPedestrianSpeed(pedestrian_name);
+    });
+    pimpl_->server.bind("simStopPedestrian", [&](std::string& pedestrian_name) {
+        return getWorldSimApi()->stopPedestrian(pedestrian_name);
+    });
+    pimpl_->server.bind("simMovePedestrianToGoal", [&](std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed) {
+        return getWorldSimApi()->movePedestrianToGoal(pedestrian_name, goal_x, goal_y, goal_z, speed);
+    });
+
     pimpl_->server.bind("simGetObjectPose", [&](const std::string& object_name) -> RpcLibAdapatorsBase::Pose {
         const auto& pose = getWorldSimApi()->getObjectPose(object_name); 
         return RpcLibAdapatorsBase::Pose(pose);
