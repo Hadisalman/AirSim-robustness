@@ -278,22 +278,22 @@ vector<string> RpcLibClientBase::simListSceneObjects(const string& name_regex) c
     return pimpl_->client.call("simListSceneObjects", name_regex).as<vector<string>>();
 }
 
-bool simPedestrianIsMoving(std::string& pedestrian_name)
+bool RpcLibClientBase::simPedestrianIsMoving(std::string& pedestrian_name)
 {
     return pimpl_->client.call("simPedestrianIsMoving").as<bool>();
 }
 
-int simGetPedestrianSpeed(std::string& pedestrian_name)
+int RpcLibClientBase::simGetPedestrianSpeed(std::string& pedestrian_name)
 {
     return pimpl_->client.call("simGetPedestrianSpeed").as<int>();
 }
 
-bool simStopPedestrian(std::string& pedestrian_name)
+bool RpcLibClientBase::simStopPedestrian(std::string& pedestrian_name)
 {
     return pimpl_->client.call("simStopPedestrian").as<bool>();
 }
 
-bool simMovePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed)
+bool RpcLibClientBase::simMovePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed)
 {
     return pimpl_->client.call("simMovePedestrianToGoal").as<bool>();
 }
