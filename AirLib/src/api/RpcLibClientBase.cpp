@@ -402,6 +402,11 @@ void RpcLibClientBase::cancelLastTask(const std::string& vehicle_name)
     pimpl_->client.call("cancelLastTask", vehicle_name);
 }
 
+bool RpcLibClientBase::simSetTextureFromUrl(std::string& object_name, std::string& url)
+{
+    return pimpl_->client.call("simSetTextureFromUrl", object_name, url).as<bool>();
+}
+
 //return value of last task. It should be true if task completed without
 //cancellation or timeout
 RpcLibClientBase* RpcLibClientBase::waitOnLastTask(bool* task_result, float timeout_sec)

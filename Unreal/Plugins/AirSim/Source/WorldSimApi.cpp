@@ -2,6 +2,7 @@
 #include "AirBlueprintLib.h"
 #include "TextureShuffleActor.h"
 #include "common/common_utils/Utils.hpp"
+#include "TextureShuffleActor.h"
 #include "Weather/WeatherLib.h"
 #include "DrawDebugHelpers.h"
 #include "BaseNewerPedestrian.h"
@@ -71,6 +72,17 @@ std::vector<std::string> WorldSimApi::listSceneObjects(const std::string& name_r
         result = UAirBlueprintLib::ListMatchingActors(simmode_, name_regex);
     }, true);
     return result;
+}
+
+bool WorldSimApi::setTextureFromUrl(std::string& object_name, std::string& url)
+{
+    bool found = false;
+    UAirBlueprintLib::RunCommandOnGameThread([this, &object_name, &url, &found]() {
+        ATextureShuffleActor* actor = UAirBlueprintLib::FindActor<ATextureShuffleActor>(simmode_, FString(object_name.c_str()));
+        if (actor != nullptr)
+            actor->SetTextureFromUrl(FString(url.c_str()));
+    }, true);
+    return found;
 }
 
 bool WorldSimApi::pedestrianIsMoving(std::string& pedestrian_name)
