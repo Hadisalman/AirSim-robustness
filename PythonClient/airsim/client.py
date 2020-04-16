@@ -105,8 +105,8 @@ class VehicleClient:
     def simStopPedestrian(self, pedestrian_name):
         return self.client.call('simStopPedestrian', pedestrian_name)
         
-    def simMovePedestrianToGoal(self, pedestrian_name, goal_x, goal_y, goal_z, speed):
-        return self.client.call('simMovePedestrianToGoal', pedestrian_name, goal_x, goal_y, goal_z, speed)
+    def simMovePedestrianToGoal(self, pedestrian_name, pose, speed):
+        return self.client.call('simMovePedestrianToGoal', pedestrian_name, pose, speed)
 
     
     # camera control

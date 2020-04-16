@@ -361,7 +361,7 @@ bool RpcLibClientBase::simStopPedestrian(std::string& pedestrian_name)
     return pimpl_->client.call("simStopPedestrian").as<bool>();
 }
 
-bool RpcLibClientBase::simMovePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed)
+bool RpcLibClientBase::simMovePedestrianToGoal(std::string& pedestrian_name, const msr::airlib::Pose& pose, int speed)
 {
     return pimpl_->client.call("simMovePedestrianToGoal").as<bool>();
 }

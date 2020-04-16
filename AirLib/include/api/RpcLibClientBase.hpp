@@ -56,7 +56,7 @@ public:
 
     bool simStopPedestrian(std::string& pedestrian_name);
 
-    bool simMovePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed);
+    bool simMovePedestrianToGoal(std::string& pedestrian_name, const Pose& pose, int speed);
 
     Pose simGetObjectPose(const std::string& object_name) const;
     bool simSetObjectPose(const std::string& object_name, const Pose& pose, bool teleport = true);

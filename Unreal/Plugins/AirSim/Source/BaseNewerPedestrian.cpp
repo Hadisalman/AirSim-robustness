@@ -65,9 +65,10 @@ void ABaseNewerPedestrian::Tick(float DeltaTime)
 				// running speed
 				move_speed_ = 200.0f;
 			}
-			if (FVector::PointsAreNear(GetActorLocation(), current_goal_position, 0.1f))
+			if (FVector::PointsAreNear(GetActorLocation(), current_goal_position, 5.0f))
 			{
 				bIsMoving = false;
+				desired_speed = 0;
 			}
 			else
 			{

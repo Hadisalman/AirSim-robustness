@@ -40,7 +40,7 @@ public:
     virtual bool pedestrianIsMoving(std::string& pedestrian_name) override;
     virtual int getPedestrianSpeed(std::string& pedestrian_name) override;
     virtual bool stopPedestrian(std::string& pedestrian_name) override;
-    virtual bool movePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed) override;
+    virtual bool movePedestrianToGoal(std::string& pedestrian_name, const Pose& pose, int speed) override;
 
     //----------- Plotting APIs ----------/
     virtual void simFlushPersistentMarkers() override;

@@ -57,7 +57,7 @@ public:
     virtual bool pedestrianIsMoving(std::string& pedestrian_name) = 0;
     virtual int getPedestrianSpeed(std::string& pedestrian_name) = 0;
     virtual bool stopPedestrian(std::string& pedestrian_name) = 0;
-    virtual bool movePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed) = 0;
+    virtual bool movePedestrianToGoal(std::string& pedestrian_name, const Pose& pose, int speed) = 0;
 
     virtual Pose getObjectPose(const std::string& object_name) const = 0;
     virtual bool setObjectPose(const std::string& object_name, const Pose& pose, bool teleport) = 0;

@@ -121,11 +121,12 @@ bool WorldSimApi::stopPedestrian(std::string& pedestrian_name)
     return found;
 }
 
-bool WorldSimApi::movePedestrianToGoal(std::string& pedestrian_name, float goal_x, float goal_y, float goal_z, int speed)
+bool WorldSimApi::movePedestrianToGoal(std::string& pedestrian_name, const WorldSimApi::Pose& pose, int speed)
 {
-    FVector target(goal_x, goal_y, goal_z);
+    // FVector target(goal_x, goal_y, goal_z);
     bool found = false;
-    UAirBlueprintLib::RunCommandOnGameThread([this, &found, &pedestrian_name, &target, speed]() {
+    UAirBlueprintLib::RunCommandOnGameThread([this, &found, &pedestrian_name, &pose, speed]() {
+        FVector target = simmode_->getGlobalNedTransform().fromGlobalNed(pose).GetLocation();
         ABaseNewerPedestrian* pedestrian = UAirBlueprintLib::FindActor<ABaseNewerPedestrian>(simmode_, FString(pedestrian_name.c_str()));
         if (pedestrian != nullptr)
         {
