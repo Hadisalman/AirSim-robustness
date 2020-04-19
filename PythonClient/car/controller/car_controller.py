@@ -59,30 +59,12 @@ class State(object):
         self.yaw = yaw
         self.v = v
 
-    '''
-    def update(self, acceleration, delta):
-        """
-        Update the state of the vehicle.
-
-        Stanley Control uses bicycle model.
-
-        :param acceleration: (float) Acceleration
-        :param delta: (float) Steering
-        """
-        delta = np.clip(delta, -self.ms, self.ms)
-
-        self.x += self.v * np.cos(self.yaw) * dt
-        self.y += self.v * np.sin(self.yaw) * dt
-        self.yaw += self.v / self.wb * np.tan(delta) * dt
-        self.yaw = normalize_angle(self.yaw)
-        self.v += acceleration * dt
-    '''
-
 class CarController():
     def __init__(self):
         self.cx = []
         self.cy = []
         self.cyaw = []
+        self.last_idx = 0
         self.ck = []
         self.ax = []
         self.ay = []
@@ -94,24 +76,29 @@ class CarController():
         self.dt = 1.0                       # [s] time step
         self.wheel_base = 4.0               # [m] Wheel base of vehicle
         self.max_steer = np.radians(60.0)   # [rad] max steering angle
-        self.target_speed = 1.0             # [m/s] Unused for now
+        self.target_speed = 30.0            # [m/s] Max. target velocity = 60 mph
+
+        self.brake_override = False
 
         #self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 55.0, 55.0, 55.0, 55.0, 55.0, 55.0,  55.0,  55.0,  55.0,  55.0,  55.0,  55.0,  53.0,  50.0,  40.0,  25.0,   0.0, -40.0, -80.0, -150.0, -170.0, -180.0, -185.0, -188.0, -190.0, -192.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -197.0, -190.0, -185.0, -180.0, -90.0, -20.0, 0.0]
         #self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  2.0,  5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 115.0, 117.0, 119.0, 121.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  126.0,  124.0,  121.0,  111.0,   91.0,   41.0,   10.0,    5.0,    0.0,    0.0,    0.0,    0.0,   0.0,   0.0, 0.0]
 
-        self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 57.0, 57.0, 57.0, 57.0, 57.0, 57.0,  57.0,  57.0,  57.0,  57.0,  57.0, 57.0, 55.0,  50.0, 40.0,  25.0,   0.0, -50.0, -61.0,  -63.0,  -65.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,   -67.0,  -60.0,  -52.0,  -42.0, -20.0, 0.0]
-        self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  2.0,  5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 115.0, 117.0, 119.0, 121.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  126.0,  126.0,  124.0,  121.0,  116.0,   96.0,   46.0,   11.0,    9.0,    7.0,    5.0,    0.0,    0.0,    0.0,    0.0,   0.0, 0.0]
+        self.ax = [0.0, 25.0, 40.0, 45.0, 48.0, 50.0, 52.0, 56.0, 57.0, 57.0, 57.0, 57.0,  57.0,  57.0,  57.0,  57.0, 56.0, 54.0,  50.0, 40.0,  25.0,   0.0, -50.0, -61.0,   -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -69.0,  -65.0,  -60.0,  -52.0,  -42.0, -20.0, 0.0]
+        self.ay = [0.0, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0, 5.0, 10.0, 20.0, 50.0, 70.0, 100.0, 110.0, 117.0, 120.0, 122.0, 124.0, 126.0, 126.0, 126.0, 126.0, 126.0, 126.0,  121.0,  116.0,   96.0,   46.0,   11.0,    9.0,    7.0,   0.0,    0.0,    0.0,    0.0,   0.0, 0.0]
 
         self.client = None
         self.controls = airsim.CarControls()
         self.state = State()
 
-        self.plot = True
+        self.plot = False
 
     def setupClient(self):
         self.client = airsim.CarClient()
         self.client.confirmConnection()
         self.client.enableApiControl(True)
+    
+    def setSpeed(self, speed):
+        self.client.setCarSpeed(speed)
 
     def sendCommands(self, throttle=0.0, steering=0.0, brake=0.0):
         self.controls.throttle = throttle
@@ -155,7 +142,6 @@ class CarController():
         :return: (float)
         """
         return self.Kp * (target - current)
-
 
     def stanley_control(self, state):
         """
@@ -201,8 +187,6 @@ class CarController():
         d = np.hypot(dx, dy)
         target_idx = np.argmin(d)
 
-        print(target_idx)
-
         # Project RMS error onto front axle vector
         front_axle_vec = [-np.cos(state.yaw + np.pi / 2),
                         -np.sin(state.yaw + np.pi / 2)]
@@ -210,132 +194,120 @@ class CarController():
 
         return target_idx, error_front_axle
 
-    def stop_car(self, signal, frame):
+    def stop_controller(self, signal, frame):
         print("\nCtrl+C received. Stopping car controller...")
         self.sendCommands(0.0, 0.0, 1.0)
         print("Done.")
         sys.exit(0)
 
-def main():
-    print("Initializing car controller...", end=' ')
-    car = CarController()
-    car.setupClient()
+    def stop(self):
+        '''
+        Apply brake and override car controller
+        '''
+        self.brake_override = True
 
-    path = "small"
-    #path = "large"
-    
-    if path == "small":
-        filename = "NH_path_small"
-        #intersection_idx = [35, 160, 286, 410]
-        intersection_idx = [40, 160, 280, 410]
-        intersection_should_stop = [1, 0, 0, 1]
-    elif path == "large":
-        filename = "NH_path_large"
-        intersection_idx = [40, 160, 414, 540]
-        intersection_should_stop = [1, 0, 0, 1]
-    
-    car.fitSpline()
-    car.saveSpline(filename)
-    #car.readSpline(filename)
-    
-    target_speed = 1.0  # [m/s]
-    #max_simulation_time = 1000.0
+    def resume(self):
+        '''
+        Resume normal path tracking
+        '''
+        self.brake_override = False
 
-    car_pose = car.client.simGetObjectPose('PlayerState_0')
-    #self.state.x = car_state.kinematics_estimated.position.x_val
-    #self.state.y = car_state.kinematics_estimated.position.y_val
+    def initialize(self):
+        print("Initializing car controller...", end=' ')
+        #car = CarController()
+        self.setupClient()
 
-    car.offx = car_pose.position.x_val + 72.0
-    car.offy = car_pose.position.y_val - 15.0
-
-    # Initial state
-    car.state = State(x=car.offx, y=car.offy, yaw=np.radians(0.0), v=0.0)
-
-    last_idx = len(car.cx) - 1
-
-    x = []
-    y = []
-    yaw = []
-    v = []
-
-    const_throttle = 0.8
-    brake = 0.0
-
-    signal.signal(signal.SIGINT, car.stop_car)
-
-    print("Done.")
-    print("Running...")
-
-    prev_idx = 0
-    slow_start_idx = 0
-    slow_down = False
-
-    intersection = False
-    while True:
-        accel = car.pid_control(target_speed, car.state.v)
-        steering, target_idx = car.stanley_control(car.state)
-
-        print(target_idx)
-
-        if target_idx in intersection_idx:
-            intersection = True
-            int_idx = np.where(intersection_idx == target_idx)[0][0]
-            should_stop = intersection_should_stop[int_idx]
-
-        if intersection:   
-            if should_stop:                             # Stop the car
-                car.sendCommands(0.0, steering, 1.0)
-                time.sleep(3.0)
-                should_stop = False
-                intersection = False
-                const_throttle = 0.7
+        path = "small"
+        #path = "large"
         
-            else:                                           # Slow down and navigate intersection
-                slow_start_idx = intersection_idx[int_idx]
-                if target_idx < slow_start_idx + 30:
-                    if target_idx < slow_start_idx + 15 and target_idx > prev_idx:
-                        brake = 0.4
-                        const_throttle = 0.0
-                    else:
-                        const_throttle = 0.4
-                        brake = 0.0
-                    
-                    prev_idx = target_idx
-            
+        if path == "small":
+            filename = "NH_path_small"
+        elif path == "large":
+            filename = "NH_path_large"
+        
+        self.fitSpline()
+        self.saveSpline(filename)
+        #self.readSpline(filename)
+        
+        target_speed = 1.0  # [m/s]
+        #max_simulation_time = 1000.0
+
+        car_pose = self.client.simGetObjectPose('PlayerState_0')
+        #self.state.x = car_state.kinematics_estimated.position.x_val
+        #self.state.y = car_state.kinematics_estimated.position.y_val
+
+        self.offx = car_pose.position.x_val + 72.0
+        self.offy = car_pose.position.y_val - 15.0
+
+        # Initial state
+        self.state = State(x=self.offx, y=self.offy, yaw=np.radians(0.0), v=0.0)
+
+        self.last_idx = len(self.cx) - 1
+
+        const_throttle = 0.8
+        brake = 0.0       
+
+        print("Done.")
+
+    def run(self):
+        print("Running...")
+        signal.signal(signal.SIGINT, self.stop_controller)
+
+        x = []
+        y = []
+        yaw = []
+        v = []
+
+        while True:
+            steering, target_idx = self.stanley_control(self.state)
+            if not self.brake_override:
+                speed = self.target_speed
+
+                # Use adaptive lookahead to figure out how far we are from turn
+                lookahead_window = int(speed)
+                if target_idx + lookahead_window < len(self.cyaw):
+                    lookahead_idx = target_idx + lookahead_window
                 else:
-                    slow_start_idx = 0
-                    const_throttle = 0.7
-                    brake = 0.0
-                    intersection = False
+                    lookahead_idx = (target_idx + lookahead_window) - len(self.cyaw)
 
-        car.sendCommands(const_throttle, steering, brake)        
-        car.updateState()        
+                # Slow down to 7 m/s if yaw difference is over a threshold, indicating upcoming turn
+                if abs((abs(self.cyaw[lookahead_idx]) - abs(self.cyaw[target_idx]))*180/np.pi) > 15.0:
+                    speed = 7.0
+                    
+                self.setSpeed(speed)
+                self.sendCommands(0.0, steering, 0.0)        
+                self.updateState()        
 
-        # Restart path tracking when close to end
-        if target_idx > last_idx - 5:
-            target_idx = 0
+                # Restart path tracking when close to end
+                if target_idx > self.last_idx - 5:
+                    target_idx = 0
 
-        x.append(car.state.x)
-        y.append(car.state.y)
-        yaw.append(car.state.yaw)
-        v.append(car.state.v)       
+                x.append(self.state.x)
+                y.append(self.state.y)
+                yaw.append(self.state.yaw)
+                v.append(self.state.v)       
 
-        if car.plot:  # pragma: no cover
-            plt.cla()
-            # for stopping simulation with the esc key.
-            plt.gcf().canvas.mpl_connect('key_release_event',
-                    lambda event: [exit(0) if event.key == 'escape' else None])
-            plt.plot(car.cx, car.cy, ".r", label="course")
-            plt.plot(x, y, "-b", label="trajectory")
-            plt.plot(car.cx[target_idx], car.cy[target_idx], "xg", label="target")
-            plt.axis("equal")
-            plt.grid(True)
-            plt.title("Speed[km/h]:" + str(car.state.v))
-            plt.pause(0.001)
+            else:
+                self.sendCommands(0.0, steering, 1.0)
 
-    # Stop
-    assert last_idx >= target_idx, "Cannot reach goal"
+            if self.plot:  # pragma: no cover
+                plt.cla()
+                # for stopping simulation with the esc key.
+                plt.gcf().canvas.mpl_connect('key_release_event',
+                        lambda event: [exit(0) if event.key == 'escape' else None])
+                plt.plot(self.cx, self.cy, ".r", label="course")
+                plt.plot(x, y, "-b", label="trajectory")
+                plt.plot(self.cx[target_idx], self.cy[target_idx], "xg", label="target")
+                plt.axis("equal")
+                plt.grid(True)
+                plt.title("Speed[km/h]:" + str(self.state.v))
+                plt.pause(0.001)
+
+        # Stop
+        assert last_idx >= target_idx, "Cannot reach goal"
 
 
 if __name__ == '__main__':
-    main()
+    car = CarController()
+    car.initialize()
+    car.run()
