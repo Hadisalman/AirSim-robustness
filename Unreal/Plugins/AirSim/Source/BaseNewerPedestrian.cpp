@@ -79,8 +79,7 @@ void ABaseNewerPedestrian::Tick(float DeltaTime)
 		}
 	}	
 
-	TArray<AActor*> OverlapList;
-
+	OverlapList.Empty();
 	GetOverlappingActors(OverlapList);
 
 	if (OverlapList.Num() > 0) {

@@ -44,6 +44,9 @@ protected:
 	UPROPERTY()
 	bool bHasCollided;
 
+private:
+	TArray<AActor*> OverlapList;
+
 
 public:	
 	// Called every frame
