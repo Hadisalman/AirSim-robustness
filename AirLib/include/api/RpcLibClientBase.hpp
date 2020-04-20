@@ -51,6 +51,8 @@ public:
     vector<string> simListSceneObjects(const string& name_regex = string(".*")) const;
 
     bool simPedestrianIsMoving(std::string& pedestrian_name);
+    bool simPedestrianIsInCollision(std::string& pedestrian_name);
+    bool simPedestrianHasCollided(std::string& pedestrian_name);
 
     int simGetPedestrianSpeed(std::string& pedestrian_name);
 

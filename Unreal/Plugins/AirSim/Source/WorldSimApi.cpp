@@ -96,6 +96,28 @@ bool WorldSimApi::pedestrianIsMoving(std::string& pedestrian_name)
     return moving;
 }
 
+bool WorldSimApi::pedestrianIsInCollision(std::string& pedestrian_name)
+{
+    bool moving = false;
+    UAirBlueprintLib::RunCommandOnGameThread([this, &pedestrian_name, &moving]() {
+        ABaseNewerPedestrian* pedestrian = UAirBlueprintLib::FindActor<ABaseNewerPedestrian>(simmode_, FString(pedestrian_name.c_str()));
+        if (pedestrian != nullptr)
+            moving = pedestrian->GetIsInCollision();
+    }, true);
+    return moving;
+}
+
+bool WorldSimApi::pedestrianHasCollided(std::string& pedestrian_name)
+{
+    bool moving = false;
+    UAirBlueprintLib::RunCommandOnGameThread([this, &pedestrian_name, &moving]() {
+        ABaseNewerPedestrian* pedestrian = UAirBlueprintLib::FindActor<ABaseNewerPedestrian>(simmode_, FString(pedestrian_name.c_str()));
+        if (pedestrian != nullptr)
+            moving = pedestrian->GetHasCollided();
+    }, true);
+    return moving;
+}
+
 int WorldSimApi::getPedestrianSpeed(std::string& pedestrian_name)
 {
     int speed = -1;

@@ -38,6 +38,12 @@ protected:
 	UPROPERTY()
 	bool bIsMoving;
 
+	UPROPERTY()
+	bool bInCollision;
+
+	UPROPERTY()
+	bool bHasCollided;
+
 
 public:	
 	// Called every frame
@@ -55,5 +61,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Pedestrian)
 	bool GetIsMoving() const;
 	
+	UFUNCTION(BlueprintCallable, Category = Pedestrian)
+	bool GetIsInCollision() const;
+
+	UFUNCTION(BlueprintCallable, Category = Pedestrian)
+	bool GetHasCollided() const;
 	
 };

@@ -251,6 +251,12 @@ RpcLibServerBase::RpcLibServerBase(ApiProvider* api_provider, const std::string&
     pimpl_->server.bind("simPedestrianIsMoving", [&](std::string& pedestrian_name) {
         return getWorldSimApi()->pedestrianIsMoving(pedestrian_name);
     });
+    pimpl_->server.bind("simPedestrianIsInCollision", [&](std::string& pedestrian_name) {
+        return getWorldSimApi()->pedestrianIsInCollision(pedestrian_name);
+    });
+    pimpl_->server.bind("simPedestrianHasCollided", [&](std::string& pedestrian_name) {
+        return getWorldSimApi()->pedestrianHasCollided(pedestrian_name);
+    });
     pimpl_->server.bind("simGetPedestrianSpeed", [&](std::string& pedestrian_name) {
         return getWorldSimApi()->getPedestrianSpeed(pedestrian_name);
     });

@@ -98,6 +98,12 @@ class VehicleClient:
     
     def simPedestrianIsMoving(self, pedestrian_name):
         return self.client.call('simPedestrianIsMoving', pedestrian_name)
+
+    def simPedestrianIsInCollision(self, pedestrian_name):
+        return self.client.call('simPedestrianIsInCollision', pedestrian_name)
+
+    def simPedestrianHasCollided(self, pedestrian_name):
+        return self.client.call('simPedestrianHasCollided', pedestrian_name)
         
     def simGetPedestrianSpeed(self, pedestrian_name):
         return self.client.call('simGetPedestrianSpeed', pedestrian_name)

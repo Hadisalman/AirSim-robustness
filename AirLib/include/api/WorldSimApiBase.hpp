@@ -55,6 +55,8 @@ public:
     virtual std::vector<std::string> listSceneObjects(const std::string& name_regex) const = 0;
 
     virtual bool pedestrianIsMoving(std::string& pedestrian_name) = 0;
+    virtual bool pedestrianIsInCollision(std::string& pedestrian_name) = 0;
+    virtual bool pedestrianHasCollided(std::string& pedestrian_name) = 0;    
     virtual int getPedestrianSpeed(std::string& pedestrian_name) = 0;
     virtual bool stopPedestrian(std::string& pedestrian_name) = 0;
     virtual bool movePedestrianToGoal(std::string& pedestrian_name, const Pose& pose, int speed) = 0;

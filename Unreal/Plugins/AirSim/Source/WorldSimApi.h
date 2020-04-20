@@ -38,6 +38,8 @@ public:
     virtual bool setObjectPose(const std::string& object_name, const Pose& pose, bool teleport) override;
     virtual bool setTextureFromUrl(std::string& object_name, std::string& url) override;
     virtual bool pedestrianIsMoving(std::string& pedestrian_name) override;
+    virtual bool pedestrianIsInCollision(std::string& pedestrian_name) override;
+    virtual bool pedestrianHasCollided(std::string& pedestrian_name) override;
     virtual int getPedestrianSpeed(std::string& pedestrian_name) override;
     virtual bool stopPedestrian(std::string& pedestrian_name) override;
     virtual bool movePedestrianToGoal(std::string& pedestrian_name, const Pose& pose, int speed) override;

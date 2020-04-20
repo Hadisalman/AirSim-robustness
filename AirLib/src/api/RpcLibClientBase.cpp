@@ -351,6 +351,16 @@ bool RpcLibClientBase::simPedestrianIsMoving(std::string& pedestrian_name)
     return pimpl_->client.call("simPedestrianIsMoving").as<bool>();
 }
 
+bool RpcLibClientBase::simPedestrianIsInCollision(std::string& pedestrian_name)
+{
+    return pimpl_->client.call("simPedestrianIsInCollision").as<bool>();
+}
+
+bool RpcLibClientBase::simPedestrianHasCollided(std::string& pedestrian_name)
+{
+    return pimpl_->client.call("simPedestrianHasCollided").as<bool>();
+}
+
 int RpcLibClientBase::simGetPedestrianSpeed(std::string& pedestrian_name)
 {
     return pimpl_->client.call("simGetPedestrianSpeed").as<int>();

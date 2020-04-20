@@ -13,6 +13,7 @@ ABaseNewerPedestrian::ABaseNewerPedestrian()
 	SkeletalMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalMesh"));
 	SetRootComponent(SkeletalMesh);
 	//CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComponent"));
+	SkeletalMesh->SetGenerateOverlapEvents(true);
 
 	desired_speed = 0;
 
@@ -76,7 +77,19 @@ void ABaseNewerPedestrian::Tick(float DeltaTime)
 				SetActorLocation(FMath::VInterpConstantTo(GetActorLocation(), current_goal_position, DeltaTime, move_speed_));
 			}
 		}
+	}	
+
+	TArray<AActor*> OverlapList;
+
+	GetOverlappingActors(OverlapList);
+
+	if (OverlapList.Num() > 0) {
+		bInCollision = true;
+		if (!bHasCollided)
+			bHasCollided = true;
 	}
+	else
+		bInCollision = false;
 
 }
 
@@ -98,4 +111,12 @@ int32 ABaseNewerPedestrian::GetSpeed() const
 bool ABaseNewerPedestrian::GetIsMoving() const
 {
 	return bIsMoving;
+}
+bool ABaseNewerPedestrian::GetIsInCollision() const
+{
+	return bInCollision;
+}
+bool ABaseNewerPedestrian::GetHasCollided() const
+{
+	return bHasCollided;
 }
