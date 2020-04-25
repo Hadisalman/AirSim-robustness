@@ -127,6 +127,10 @@ RpcLibServerBase::RpcLibServerBase(ApiProvider* api_provider, const std::string&
         return getWorldSimApi()->setTextureFromUrl(object_name, url);
     });
 
+    pimpl_->server.bind("simSetDistortionParam", [&](std::string& scenecap_actor_name, std::string& param_name, float value) {
+        getWorldSimApi()->setDistortionParam(scenecap_actor_name, param_name, value);
+    });
+
     pimpl_->server.bind("simGetImages", [&](const std::vector<RpcLibAdapatorsBase::ImageRequest>& request_adapter, const std::string& vehicle_name) -> 
         vector<RpcLibAdapatorsBase::ImageResponse> {
             const auto& response = getVehicleSimApi(vehicle_name)->getImages(RpcLibAdapatorsBase::ImageRequest::to(request_adapter));

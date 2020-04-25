@@ -6,6 +6,7 @@
 #include "Weather/WeatherLib.h"
 #include "DrawDebugHelpers.h"
 #include "BaseNewerPedestrian.h"
+#include "DistortableSceneCapture.h"
 
 WorldSimApi::WorldSimApi(ASimModeBase* simmode)
     : simmode_(simmode)
@@ -157,6 +158,20 @@ bool WorldSimApi::movePedestrianToGoal(std::string& pedestrian_name, const World
         }
     }, true);
     return found;
+}
+
+void WorldSimApi::setDistortionParam(std::string& scenecap_actor_name, std::string& param_name, float value)
+{
+	UAirBlueprintLib::RunCommandOnGameThread([this, &scenecap_actor_name, &param_name, value]() {
+		ADistortableSceneCapture* actor = UAirBlueprintLib::FindActor<ADistortableSceneCapture>(simmode_, FString(scenecap_actor_name.c_str()));
+		if (!actor)
+			return;
+		auto *param_collection_asset = actor->ParamCollection;
+		if (!param_collection_asset)
+			return;
+		auto *param_collection = simmode_->GetWorld()->GetParameterCollectionInstance(param_collection_asset);
+		param_collection->SetScalarParameterValue(FName(param_name.c_str()), value);
+	}, true);
 }
 
 

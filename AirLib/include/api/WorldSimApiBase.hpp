@@ -64,6 +64,7 @@ public:
     virtual Pose getObjectPose(const std::string& object_name) const = 0;
     virtual bool setObjectPose(const std::string& object_name, const Pose& pose, bool teleport) = 0;
     virtual bool setTextureFromUrl(std::string& object_name, std::string& url) = 0;
+    virtual void setDistortionParam(std::string& scenecap_actor_name, std::string& param_name, float value) = 0;
 
 	virtual std::unique_ptr<std::vector<std::string>> swapTextures(const std::string& tag, int tex_id = 0, int component_id = 0, int material_id = 0) = 0;
     virtual vector<MeshPositionVertexBuffersResponse> getMeshPositionVertexBuffers() const = 0;
