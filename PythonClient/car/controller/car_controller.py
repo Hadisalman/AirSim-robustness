@@ -100,10 +100,11 @@ class CarController():
     def setSpeed(self, speed):
         self.client.setCarSpeed(speed)
 
-    def sendCommands(self, throttle=0.0, steering=0.0, brake=0.0):
+    def sendCommands(self, throttle=0.0, steering=0.0, brake=0.0, handbrake=False):
         self.controls.throttle = throttle
         self.controls.brake = brake
         self.controls.steering = steering
+        self.controls.handbrake = handbrake
         self.client.setCarControls(self.controls)
 
     def updateState(self):
@@ -196,7 +197,9 @@ class CarController():
 
     def stop_controller(self, signal, frame):
         print("\nCtrl+C received. Stopping car controller...")
-        self.sendCommands(0.0, 0.0, 1.0)
+        self.setSpeed(0.0)
+        self.sendCommands(0.0, 0.0, 1.0, handbrake=True)
+        # time.sleep(5)
         print("Done.")
         sys.exit(0)
 
