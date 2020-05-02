@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="airsim",
+    name="airsim-robustness",
     version="1.2.8",
-    author="Shital Shah",
-    author_email="shitals@microsoft.com",
-    description="Open source simulator based on Unreal Engine for autonomous vehicles from Microsoft AI & Research",
+    author="Hadi Salman",
+    author_email="hasalman@microsoft.com",
+    description="Platform for AI robustness research",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/microsoft/airsim",
+    url="https://github.com/hadisalman/airsim",
     packages=setuptools.find_packages(),
 	license='MIT',
     classifiers=(
