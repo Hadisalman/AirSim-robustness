@@ -108,9 +108,9 @@ private:
         return clock()->nowNanos() / 1e6;
     }
 
-    const ClockBase* clock() const
+    const msr::airlib::ClockBase* clock() const
     {
-        return ClockFactory::get();
+        return msr::airlib::ClockFactory::get();
     }
 
     struct PidConfig
