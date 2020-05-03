@@ -91,9 +91,8 @@ We provide [Linux] and [Mac] binaries. The following downloads the binary for th
 ## Demo
 When you get **the binary running** (either using docker or by manually setting things up), you can try a demo that demonstrates stuff you can do in the `Robustness Neighborhood` environment.
 ```
-cd AirSim/PythonClient/robustness;
 conda activate airsim;
-python robustness_utils_demo.py results/ped_recognition_new/224x224/model_best.pth.tar --demo-id 0;
+python robustness_main.py results/ped_recognition_new/224x224/model_best.pth.tar --demo-id 1
 ```
 `demo-id` an take several values :
 - 0 -> image callback thread
