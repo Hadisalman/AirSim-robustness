@@ -5,7 +5,7 @@ class SimObject(object):
     def __init__(self, name):
         self.name = name
 
-        self.client = airsim.CarClient()
+        self.client = airsim.Client()
         self.client.confirmConnection()
         self.client.enableApiControl(True)
 
