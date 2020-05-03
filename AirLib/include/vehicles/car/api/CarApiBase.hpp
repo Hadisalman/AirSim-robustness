@@ -134,7 +134,8 @@ public:
     virtual void updateCarState(const CarState& state) = 0;
     virtual const CarState& getCarState() const = 0;
     virtual const CarControls& getCarControls() = 0;
-    virtual void setCarSpeed(float speed) = 0;
+    virtual void setCarTargetSpeed(float speed) = 0;
+    virtual void setCarSpeedControlStatus(bool status) = 0;
 
     virtual ~CarApiBase() = default;
 

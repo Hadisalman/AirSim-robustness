@@ -96,11 +96,11 @@ class CarController():
         self.client.confirmConnection()
         self.client.enableApiControl(True)
     
-    def setSpeed(self, speed):
-        self.client.setCarSpeed(speed)
+    def setTargetSpeed(self, speed):
+        self.client.setCarTargetSpeed(speed)
 
     def sendCommands(self, speed=0, steering=0.0, handbrake=False):
-        self.setSpeed(speed)
+        self.setTargetSpeed(speed)
         self.controls.steering = steering
         self.controls.handbrake = handbrake
         self.client.setCarControls(self.controls)

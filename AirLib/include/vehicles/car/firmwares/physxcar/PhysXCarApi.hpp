@@ -67,11 +67,16 @@ public:
 
 
 public:
-    virtual void setCarSpeed(float speed) override
+    virtual void setCarTargetSpeed(float speed) override
     {
         pid_->setGoal(speed);
         target_speed_ = speed;
         speed_control_enabled_ = true;
+    }
+
+    virtual void setCarSpeedControlStatus(bool status) override
+    {
+        speed_control_enabled_ = status;
     }
 
     virtual void setCarControls(const CarControls& controls) override

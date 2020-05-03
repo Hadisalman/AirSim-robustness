@@ -119,9 +119,14 @@ public:
         return last_controls_;
     }
 
-    virtual void setCarSpeed(float speed) override
+    virtual void setCarTargetSpeed(float speed) override
     {
         unused(speed);
+    }
+
+    virtual void setCarSpeedControlStatus(bool status) override
+    {
+        unused(status);
     }
 
 protected:

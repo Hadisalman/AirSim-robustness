@@ -53,8 +53,13 @@ CarRpcLibServer::CarRpcLibServer(ApiProvider* api_provider, string server_addres
     });
 
     (static_cast<rpc::server*>(getServer()))->
-        bind("setCarSpeed", [&](float speed, const std::string& vehicle_name) -> void {
-        getVehicleApi(vehicle_name)->setCarSpeed(speed);
+        bind("setCarTargetSpeed", [&](float speed, const std::string& vehicle_name) -> void {
+        getVehicleApi(vehicle_name)->setCarTargetSpeed(speed);
+    });
+
+    (static_cast<rpc::server*>(getServer()))->
+        bind("setCarSpeedControlStatus", [&](bool status, const std::string& vehicle_name) -> void {
+        getVehicleApi(vehicle_name)->setCarSpeedControlStatus(status);
     });
 
 	(static_cast<rpc::server*>(getServer()))->
