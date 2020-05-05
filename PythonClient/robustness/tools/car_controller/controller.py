@@ -236,9 +236,9 @@ class CarController():
         self.saveSpline(filename)
         #self.readSpline(filename)
         
-        car_pose = self.client.simGetObjectPose('PlayerState_0')
-        #self.state.x = car_state.kinematics_estimated.position.x_val
-        #self.state.y = car_state.kinematics_estimated.position.y_val
+        #car_pose = self.client.simGetObjectPose('PlayerState_0')
+        player_start_assets = self.client.simListSceneObjects("PlayerState.*")
+        car_pose = self.client.simGetObjectPose(player_start_assets[0])
 
         self.offx = car_pose.position.x_val + 72.0
         self.offy = car_pose.position.y_val - 15.0
