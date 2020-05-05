@@ -1,5 +1,5 @@
 import asyncio
-import airsim
+from robustness import airsim
 from IPython import embed
 import copy
 import numpy as np
@@ -27,7 +27,7 @@ client.simPedestrianIsMoving(ped_object_name)
 client.simStopPedestrian(ped_object_name)
 
 pose = client.simGetObjectPose(ped_object_name)
-embed()
+
 for i in range(10):
     if i%2==0:
         goal_pose = airsim.Pose(copy.copy(pose.position))

@@ -194,7 +194,7 @@ class CarController():
 
         return target_idx, error_front_axle
 
-    def stop_controller(self, signal, frame):
+    def _stop_controller(self, signal, frame):
         print("\nCtrl+C received. Stopping car controller...")
         self.sendCommands(speed=0, steering=0.0, handbrake=True)
         # time.sleep(5)
@@ -248,8 +248,8 @@ class CarController():
 
         self.last_idx = len(self.cx) - 1
 
-        const_throttle = 0.8
-        brake = 0.0       
+        # const_throttle = 0.8
+        # brake = 0.0       
 
         print("Done.")
 
@@ -283,7 +283,7 @@ class CarController():
 
     def run(self):
         print("Running...")
-        signal.signal(signal.SIGINT, self.stop_controller)
+        signal.signal(signal.SIGINT, self._stop_controller)
 
         x = []
         y = []
