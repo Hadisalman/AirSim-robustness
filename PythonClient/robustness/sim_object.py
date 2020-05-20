@@ -7,7 +7,6 @@ class SimObject(object):
 
         self.client = airsim.Client()
         self.client.confirmConnection()
-        self.client.enableApiControl(True)
 
     def reset(self): 
         self._stop_thread()

@@ -91,10 +91,10 @@ class CarController():
 
         self.plot = False
 
-    def setupClient(self):
+    def setupClient(self, enable_api_control):
         self.client = airsim.CarClient()
         self.client.confirmConnection()
-        self.client.enableApiControl(True)
+        self.client.enableApiControl(enable_api_control)
     
     def setTargetSpeed(self, speed):
         self.client.setCarTargetSpeed(speed)
@@ -219,10 +219,10 @@ class CarController():
         '''
         self.brake_override = False
 
-    def initialize(self):
+    def initialize(self, enable_api_control=True):
         print("Initializing car controller...", end=' ')
         #car = CarController()
-        self.setupClient()
+        self.setupClient(enable_api_control)
 
         path = "small"
         #path = "large"
@@ -233,7 +233,7 @@ class CarController():
             filename = "NH_path_large"
         
         self.fitSpline()
-        self.saveSpline(filename)
+        # self.saveSpline(filename)
         #self.readSpline(filename)
         
         #car_pose = self.client.simGetObjectPose('PlayerState_0')

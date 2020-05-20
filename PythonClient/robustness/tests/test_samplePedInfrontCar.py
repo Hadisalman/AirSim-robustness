@@ -50,6 +50,29 @@ def randomPedPoseInfrontCar(car_pose_world, z_ped, r_range=(4, 7), cam_fov=30.0)
 
     return ped_pose_world
 
+def isPedInfrontCar(ped_pose_world, car_pose_world, r_range=(4, 7), cam_fov=30.0):
+    r = randomSample(r_range)
+    alpha = cam_fov/180.0*np.pi/2.0
+    theta_range = [-alpha, alpha]
+    theta = randomSample(theta_range)
+
+    rel_ped_position_body = polar_to_cartesian(r, theta)
+
+    rel_ped_position_world = body_to_world(rel_ped_position_body, car_pose_world.orientation)
+
+    ped_position_world = car_pose_world.position + rel_ped_position_world
+
+    ped_position_world.z_val = z_ped # overwrite the z_val of the pedestrian
+
+    yaw = randomSample([-np.pi/2, np.pi/2])
+    rotation_ped = Rotation.from_euler('ZYX', [yaw, 0, 0])
+    q = rotation_ped.as_quat()
+    ped_pose_world = airsim.Pose(ped_position_world, airsim.Quaternionr(q[0], q[1], q[2], q[3]))
+
+    return ped_pose_world
+
+
+
 while True:
     ped_pose = client.simGetObjectPose('Adv_Ped2')
     vehicle_pose = client.simGetVehiclePose()

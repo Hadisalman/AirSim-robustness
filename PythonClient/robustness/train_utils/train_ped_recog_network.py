@@ -15,8 +15,8 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 from IPython import embed
 import numpy as np
-from .datasets import ZippedDataset, splitTrainTest
-from .utils import AverageMeter, accuracy, init_logfile, log, copy_code
+from robustness.train_utils import  datasets as custom_datasets
+from robustness.tools.utils import AverageMeter, accuracy, init_logfile, log, copy_code
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -117,7 +117,7 @@ def main():
                                      std=[0.229, 0.224, 0.225])
     
     if '.zip' in args.data:
-        dataset = ZippedDataset(args.data)
+        dataset = custom_datasets.ZippedDataset(args.data)
     else:
         dataset = datasets.ImageFolder(args.data)
 
@@ -136,7 +136,7 @@ def main():
                                         transforms.ToTensor(),
                                         normalize
                                         ])
-    train_data, test_data = splitTrainTest(dataset, (N_train, N_test), transform_train, transform_test, mode='random')
+    train_data, test_data = custom_datasets.splitTrainTest(dataset, (N_train, N_test), transform_train, transform_test, mode='random')
 
     print("Training data of size {}".format(len(train_data)))
     print("Test data of size {}".format(len(test_data)))

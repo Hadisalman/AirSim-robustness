@@ -27,10 +27,11 @@ if __name__ == "__main__":
     parser.add_argument('--num-iter', default=1, type=int,
                         help='number of iterators of coord descent 3D object adv attack')
     parser.add_argument('--adv-config-path', type=str, default='./results.json')
+    parser.add_argument('--drive-with-keyboard', action="store_true")
 
     args = parser.parse_args()
 
-    car = Car(detection_model=args.model)
+    car = Car(detection_model=args.model, enable_api_control=not args.drive_with_keyboard)
     ped = Pedestrian()
     weather = Weather()
     adversary = AdversarialObjects('adversary', car, 
@@ -43,8 +44,9 @@ if __name__ == "__main__":
         car.detection.display_image_stream()
 
     if args.demo_id == 1:
-        car.detection.run()
-        time.sleep(3)
+        # car.detection.run()
+        car.detection.display_image_stream()
+        # time.sleep(3)
         ped.walk()
         time.sleep(2)
         car.drive()
@@ -58,11 +60,11 @@ if __name__ == "__main__":
         ped.hide()
         adversary.attack()        
  
-        adversary.adv_config_path = './adv_configs/config_fn_4.json'
-        adversary.attack()        
+        # adversary.adv_config_path = './adv_configs/config_fn_4.json'
+        # adversary.attack()        
 
     elif args.demo_id == 3:
-        car.client.simPause(True)
+        car.client.simPause(False)
 
         # adversary.update_env_from_config(path='./adv_configs/config_fp.json')
         adversary.update_env_from_config(path='./adv_configs/config_fp_2.json')
@@ -71,7 +73,7 @@ if __name__ == "__main__":
         # adversary.update_env_from_config(path='./adv_configs/config_fn_2.json')
         # adversary.update_env_from_config(path='./adv_configs/config_fn_3.json')
         car.detection.run()
-        # car.drive()
+        car.drive()
 
     elif args.demo_id == 4:
         car.detection.setup_attack(attack_config)

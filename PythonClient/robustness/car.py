@@ -7,12 +7,12 @@ from .sim_object import SimObject
 from .detection_modules import DetectionSystem
 
 class Car(SimObject):
-    def __init__(self, name='car', detection_model=None):
+    def __init__(self, name='car', detection_model=None, enable_api_control=True):
         super().__init__(name)
 
         ## Car controller init
         self.car_controller = CarController()
-        self.car_controller.initialize()
+        self.car_controller.initialize(enable_api_control)
 
         ## Detection system mounted on the car
         self.detection = DetectionSystem(model_checkpoint=detection_model)
