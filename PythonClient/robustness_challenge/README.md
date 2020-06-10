@@ -25,14 +25,14 @@ We provide [Linux] and [Mac] binaries. The following downloads the binary for th
     conda create -n airsim python=3.7 && \
     conda activate airsim && \
     git clone https://github.com/Hadisalman/AirSim.git && \
-    pip install AirSim/PythonClient
+    pip install AirSim/PythonClient/robustness_challenge
     conda install -n airsim pytorch torchvision cudatoolkit=10.1 -c pytorch
     pip install matplotlib "pillow<7" IPython opencv-python
     ``` 
 - Download and move the `settings.json` file to `~/Documents/AirSim/settings.json`.
     ```
     mkdir -p ~/Documents/AirSim &&
-    cp AirSim/PythonClient/robustness/settings.json ~/Documents/AirSim
+    cp AirSim/PythonClient/robustness_challenge/settings.json ~/Documents/AirSim
     ```
 
 #### Running
